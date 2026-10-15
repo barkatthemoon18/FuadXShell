@@ -3,7 +3,6 @@ package com.fuad.fuadx.detection;
 import com.fuad.fuadx.module.ModuleId;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -16,7 +15,7 @@ public final class DetectionResult {
     private final String errorCode;
     private final long timestamp;
 
-    public DetectionResult(ModuleId moduleId, DetectionStatus status, List<DetectionEvidence> evidence,
+    private DetectionResult(ModuleId moduleId, DetectionStatus status, List<DetectionEvidence> evidence,
                            String reason, String errorCode) {
         List<DetectionEvidence> evidenceCopy = new ArrayList<>(Objects.requireNonNull(evidence));
 
