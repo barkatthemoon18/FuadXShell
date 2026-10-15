@@ -2,6 +2,7 @@ package com.fuad.fuadx.detection;
 
 import com.fuad.fuadx.module.ModuleId;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -17,9 +18,14 @@ public final class DetectionResult {
 
     public DetectionResult(ModuleId moduleId, DetectionStatus status, List<DetectionEvidence> evidence,
                            String reason, String errorCode) {
+        List<DetectionEvidence> evidenceCopy = new ArrayList<>(Objects.requireNonNull(evidence));
+
+        if (evidenceCopy.contains(null)) {
+            throw new IllegalArgumentException("Evidence cannot be null or contain null elements");
+        }
         this.moduleId = Objects.requireNonNull(moduleId);
         this.status = Objects.requireNonNull(status);
-        this.evidence = Collections.unmodifiableList(Objects.requireNonNull(evidence));
+        this.evidence = Collections.unmodifiableList(evidenceCopy);
         this.reason = reason;
         this.errorCode = errorCode;
         this.timestamp = System.currentTimeMillis();
