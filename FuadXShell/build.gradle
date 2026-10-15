@@ -1,0 +1,77 @@
+plugins {
+    alias(libs.plugins.androidLibrary)
+}
+
+android {
+    namespace 'com.fuad.fuadxshell'
+    compileSdk 35
+
+    defaultConfig {
+        minSdk 24
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        consumerProguardFiles "consumer-rules.pro"
+        externalNativeBuild {
+            cmake {
+                cppFlags ''
+            }
+        }
+    }
+
+    sourceSets {
+        main {
+            // jniLibs.srcDirs += 'src/jniLibs'
+        }
+    }
+
+    buildTypes {
+        debug {
+            ndk {
+                debugSymbolLevel 'FULL'
+            }
+            minifyEnabled false
+            jniDebuggable true
+            externalNativeBuild {
+                cmake {
+                    arguments "-DCMAKE_VERBOSE_MAKEFILE=ON"
+                    arguments "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+                    arguments "-DANDROID_WEAK_API_DEFS=ON"
+                    // arguments "-DANDROID_ASAN=true"
+                }
+            }
+        }
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            externalNativeBuild {
+                cmake {
+                    arguments "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+                    arguments "-DANDROID_WEAK_API_DEFS=ON"
+                    arguments "-DSTRIP_DEBUG_SYMBOLS=ON"
+                }
+            }
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+    externalNativeBuild {
+        cmake {
+            path file('src/CMakeLists.txt')
+            version '3.22.1'
+        }
+    }
+    buildToolsVersion '35.0.0'
+    ndkVersion '29.0.13599879 rc2'
+}
+
+dependencies {
+
+    implementation(libs.gson)
+    implementation libs.appcompat
+    implementation libs.material
+    testImplementation libs.junit
+    androidTestImplementation libs.ext.junit
+    androidTestImplementation libs.espresso.core
+}

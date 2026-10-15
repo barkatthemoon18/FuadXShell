@@ -1,0 +1,25 @@
+# Archivos de configuración de Android Studio y Gradle
+*.iml
+.gradle
+/local.properties
+/.idea/
+.idea/
+.DS_Store
+
+# Directorios de compilación (Globales y por módulo)
+/build/
+build/
+*/build/
+captures/
+
+# Archivos de NDK / C++
+.externalNativeBuild/
+.cxx/
+CMakeLists.txt.user
+
+# Archivos de entorno y keystores (nunca subir al repositorio)
+local.properties
+*.jks
+*.keystore
+secrets.properties
+env.properties
