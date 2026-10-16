@@ -53,7 +53,7 @@ public final class FridaProbeRunner {
                     "Another Frida evaluation is already running");
         }
         try {
-            deadline = System.nanoTime() + TimeUnit.MICROSECONDS.toNanos(timeoutMillis);
+            deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
             for (int i = 0; i < 3; i++) {
                 futures.add(null);
             }

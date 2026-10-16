@@ -1,6 +1,7 @@
 package com.fuad.fuadx.detection.frida;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import com.fuad.fuadx.detection.DetectionEvidence;
@@ -14,8 +15,11 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Collections;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 public class FridaProbeRunnerTest {
@@ -86,40 +90,143 @@ public class FridaProbeRunnerTest {
     }
 
     @Test
-    public void testConcurrentExecutionIsRejected() throws InterruptedException {
-        final FridaProbeRunner runner = new FridaProbeRunner(executor, 2000);
-        final DetectionResult[] results = new DetectionResult[2];
-        
+    public void testConcurrentExecutionIsRejected()
+            throws InterruptedException {
+
+        FridaProbeRunner runner =
+                new FridaProbeRunner(executor, 2500);
+
+        CountDownLatch started = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+
+        AtomicReference<DetectionResult> firstResult =
+                new AtomicReference<>();
+
         Supplier<HeuristicResult> blockingProbe = () -> {
+            started.countDown();
+
             try {
-                Thread.sleep(500);
+                if (!release.await(5, TimeUnit.SECONDS)) {
+                    return HeuristicResult.inconclusive(
+                            "Test probe timed out");
+                }
+                return HeuristicResult.clean();
+
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
+
+                return HeuristicResult.inconclusive(
+                        "Test probe interrupted");
             }
-            return HeuristicResult.clean();
         };
 
-        Thread t1 = new Thread(() -> results[0] = runner.execute(blockingProbe, blockingProbe, blockingProbe));
-        Thread t2 = new Thread(() -> results[1] = runner.execute(HeuristicResult::clean, HeuristicResult::clean, HeuristicResult::clean));
+        Thread first = new Thread(() -> firstResult.set(
+                runner.execute(
+                        blockingProbe,
+                        blockingProbe,
+                        blockingProbe
+                )
+        ));
 
-        t1.start();
-        // Give t1 a tiny head start to acquire the lock
-        Thread.sleep(50);
-        t2.start();
+        try {
+            first.start();
 
-        t1.join();
-        t2.join();
+            assertTrue(
+                    "First evaluation did not start",
+                    started.await(2, TimeUnit.SECONDS)
+            );
 
-        // One of them must have succeeded cleanly
-        boolean hasClean = (results[0] != null && results[0].getStatus() == DetectionStatus.NO_DETECTION) || 
-                           (results[1] != null && results[1].getStatus() == DetectionStatus.NO_DETECTION);
-        
-        // The other one MUST have been rejected due to the AtomicBoolean lock
-        boolean hasRejected = (results[0] != null && "FRIDA_EVALUATION_BUSY".equals(results[0].getErrorCode())) ||
-                              (results[1] != null && "FRIDA_EVALUATION_BUSY".equals(results[1].getErrorCode()));
+            DetectionResult second = runner.execute(
+                    HeuristicResult::clean,
+                    HeuristicResult::clean,
+                    HeuristicResult::clean
+            );
 
-        assertTrue("One execution should succeed", hasClean);
-        assertTrue("One execution should be rejected because it's busy", hasRejected);
+            assertEquals(
+                    DetectionStatus.ERROR,
+                    second.getStatus()
+            );
+
+            assertEquals(
+                    "FRIDA_EVALUATION_BUSY",
+                    second.getErrorCode()
+            );
+
+        } finally {
+            release.countDown();
+            first.join(3500);
+        }
+
+        assertFalse("First evaluation did not finish", first.isAlive());
+
+        assertEquals(
+                DetectionStatus.NO_DETECTION,
+                firstResult.get().getStatus()
+        );
+    }
+    
+    @Test
+    public void testDetectionIsPreservedOnPartialTimeout() {
+
+        FridaProbeRunner runner =
+                new FridaProbeRunner(executor, 300);
+
+        CountDownLatch release = new CountDownLatch(1);
+
+        DetectionEvidence evidence = new DetectionEvidence(
+                "FridaNamedThreads",
+                "checkForFridaThreads",
+                "gum-js-loop",
+                DetectionSource.ANDROID_SIDE
+        );
+
+        Supplier<HeuristicResult> detected = () ->
+                HeuristicResult.detected(
+                        Collections.singletonList(evidence)
+                );
+
+        Supplier<HeuristicResult> blocking = () -> {
+            try {
+                if (!release.await(5, TimeUnit.SECONDS)) {
+                    return HeuristicResult.inconclusive("Probe exceeded await deadline");
+                }
+                return HeuristicResult.clean();
+
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return HeuristicResult.inconclusive(
+                        "Probe interrupted");
+            }
+        };
+
+        try {
+            DetectionResult result = runner.execute(
+                    detected,
+                    blocking,
+                    HeuristicResult::clean
+            );
+
+            assertEquals(
+                    DetectionStatus.DETECTED,
+                    result.getStatus()
+            );
+
+            assertEquals(1, result.getEvidence().size());
+            assertEquals(1, result.getDiagnostics().size());
+
+            assertEquals(
+                    "pipes",
+                    result.getDiagnostics().get(0).getProbe()
+            );
+
+            assertEquals(
+                    DetectionStatus.INCONCLUSIVE,
+                    result.getDiagnostics().get(0).getStatus()
+            );
+
+        } finally {
+            release.countDown();
+        }
     }
     
     @Test
