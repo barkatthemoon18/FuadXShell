@@ -24,7 +24,7 @@ public class Constants {
     public static final String PATH_PROC_PID_TASK_PID_WCHAN = "/proc/%d/task/%d/wchan";
 
     /* Frida Detection */
-    public static final String GUM_JS_LOOP = "gm-js-loop";
+    public static final String GUM_JS_LOOP = "gum-js-loop";
     public static final String GMAIN = "gmain";
     public static final String LINJECTOR = "linjector";
     public static final String FRIDA_SERVER = "re.frida.server";

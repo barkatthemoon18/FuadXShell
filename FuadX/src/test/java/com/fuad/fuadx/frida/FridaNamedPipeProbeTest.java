@@ -63,7 +63,14 @@ public class FridaNamedPipeProbeTest {
 
         FridaNamedPipeProbe.LinkResolver mockResolver = path -> {
             if (path.endsWith("/0")) return "/dev/null";
+            
+            // Note: "pipe:[1234] linjector" is a synthetic fixture meant ONLY to 
+            // test the string matching logic inside FridaNamedPipeProbe. 
+            // In a real Android environment, anonymous pipes show up as "pipe:[inode_number]",
+            // while Frida's linjector might be found in other file descriptor types
+            // (like mapped files or socket connections). This is strictly for unit testing.
             if (path.endsWith("/1")) return "pipe:[1234] " + Constants.LINJECTOR;
+            
             return "";
         };
 

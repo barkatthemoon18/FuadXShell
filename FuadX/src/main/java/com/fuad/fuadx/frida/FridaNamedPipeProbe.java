@@ -71,7 +71,7 @@ public final class FridaNamedPipeProbe {
                     continue;
                 }
                 inspected++;
-                if (targetPath.toLowerCase(Locale.ROOT).contains(Constants.LINJECTOR.toLowerCase())) {
+                if (targetPath.toLowerCase(Locale.ROOT).contains(Constants.LINJECTOR.toLowerCase(Locale.ROOT))) {
                     evidences.add(new DetectionEvidence("FridaNamedPipes", "readProcSelfFdLinks",
                             "fd " + fdName + "references linjector", DetectionSource.ANDROID_SIDE));
                 }
