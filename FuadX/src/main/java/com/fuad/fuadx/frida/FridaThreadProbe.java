@@ -31,7 +31,7 @@ public final class FridaThreadProbe {
         File statusFile;
         String line;
         String name;
-        boolean foundName = false;
+        boolean foundName;
         int inspected = 0;
         int failed = 0;
 
@@ -49,6 +49,7 @@ public final class FridaThreadProbe {
             if (!thread.isDirectory()) {
                 continue;
             }
+            foundName = false;
             statusFile = new File(thread, "status");
             try (BufferedReader reader = new BufferedReader(new FileReader(statusFile))) {
                 while ((line = reader.readLine()) != null) {
