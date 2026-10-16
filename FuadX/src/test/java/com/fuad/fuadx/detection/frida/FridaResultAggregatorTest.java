@@ -42,6 +42,13 @@ public class FridaResultAggregatorTest {
         assertEquals(DetectionStatus.DETECTED, result.getStatus());
         assertEquals(1, result.getEvidence().size());
         assertEquals("TestHeuristic", result.getEvidence().get(0).getHeuristic());
+        
+        // Ensure diagnostics from errors and inconclusives are preserved
+        assertEquals(2, result.getDiagnostics().size());
+        assertEquals("threads", result.getDiagnostics().get(0).getProbe());
+        assertEquals(DetectionStatus.ERROR, result.getDiagnostics().get(0).getStatus());
+        assertEquals("pipes", result.getDiagnostics().get(1).getProbe());
+        assertEquals(DetectionStatus.INCONCLUSIVE, result.getDiagnostics().get(1).getStatus());
     }
 
     @Test

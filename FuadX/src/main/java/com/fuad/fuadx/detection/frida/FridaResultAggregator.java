@@ -41,7 +41,7 @@ public final class FridaResultAggregator {
                     if (firstErrorCode == null) {
                         firstErrorCode = result.getErrorCode();
                     }
-                    diagnostics.add(DetectionDiagnostic.error(names[i], result.getErrorCode(), result.getReason()));
+                    diagnostics.add(DetectionDiagnostic.error(names[i], result.getReason(), result.getErrorCode()));
                     reasons.add(names[i] + ": " + result.getReason());
                     break;
                 case INCONCLUSIVE:
@@ -56,7 +56,7 @@ public final class FridaResultAggregator {
             }
         }
         if (!evidences.isEmpty()) {
-            return DetectionResult.detected(ModuleId.FRIDA, evidences);
+            return DetectionResult.detected(ModuleId.FRIDA, evidences, diagnostics);
         }
         if (firstErrorCode != null) {
             return DetectionResult.error(ModuleId.FRIDA, firstErrorCode, String.join("; ", reasons),

@@ -24,6 +24,9 @@ public final class DetectionResult {
         if (evidenceCopy.contains(null)) {
             throw new IllegalArgumentException("Evidence cannot be null or contain null elements");
         }
+        if (diagnostics.contains(null)) {
+            throw new IllegalArgumentException("Diagnostics cannot be null or contain null elements");
+        }
         this.moduleId = Objects.requireNonNull(moduleId);
         this.status = Objects.requireNonNull(status);
         this.evidence = Collections.unmodifiableList(evidenceCopy);
