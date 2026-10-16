@@ -72,6 +72,11 @@ public class FridaResultAggregatorTest {
         assertEquals("ERR_100", result.getErrorCode());
         assertTrue(result.getReason().contains("threads: Task missing"));
         assertTrue(result.getReason().contains("libraries: Failed to read maps"));
+        assertEquals(2, result.getDiagnostics().size());
+        assertEquals("threads", result.getDiagnostics().get(0).getProbe());
+        assertEquals(DetectionStatus.INCONCLUSIVE, result.getDiagnostics().get(0).getStatus());
+        assertEquals("libraries", result.getDiagnostics().get(1).getProbe());
+        assertEquals(DetectionStatus.ERROR, result.getDiagnostics().get(1).getStatus());
     }
 
     @Test
@@ -88,6 +93,9 @@ public class FridaResultAggregatorTest {
         assertEquals("ERR_1", result.getErrorCode());
         assertTrue(result.getReason().contains("threads: Error One"));
         assertTrue(result.getReason().contains("pipes: Error Two"));
+        assertEquals(2, result.getDiagnostics().size());
+        assertEquals("ERR_1", result.getDiagnostics().get(0).getErrorCode());
+        assertEquals("ERR_2", result.getDiagnostics().get(1).getErrorCode());
     }
 
     @Test
@@ -102,6 +110,7 @@ public class FridaResultAggregatorTest {
         assertTrue(result.getReason().contains("threads: Reason 1"));
         assertTrue(result.getReason().contains("pipes: Reason 2"));
         assertTrue(result.getReason().contains("libraries: Reason 3"));
+        assertEquals(3, result.getDiagnostics().size());
     }
 
     @Test(expected = NullPointerException.class)

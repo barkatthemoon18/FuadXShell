@@ -1,5 +1,6 @@
 package com.fuad.fuadx.detection.frida;
 
+import com.fuad.fuadx.detection.DetectionDiagnostic;
 import com.fuad.fuadx.detection.DetectionEvidence;
 import com.fuad.fuadx.detection.DetectionResult;
 import com.fuad.fuadx.heuristic.HeuristicResult;
@@ -24,7 +25,8 @@ public final class FridaResultAggregator {
         };
         String[] names = { "threads", "pipes", "libraries" };
         List<DetectionEvidence> evidences = new ArrayList<>();
-        List<String> diagnostics = new ArrayList<>();
+        List<DetectionDiagnostic> diagnostics = new ArrayList<>();
+        List<String> reasons = new ArrayList<>();
         String firstErrorCode = null;
         boolean inconclusive = false;
         HeuristicResult result;
@@ -39,11 +41,13 @@ public final class FridaResultAggregator {
                     if (firstErrorCode == null) {
                         firstErrorCode = result.getErrorCode();
                     }
-                    diagnostics.add(names[i] + ": " + result.getReason());
+                    diagnostics.add(DetectionDiagnostic.error(names[i], result.getErrorCode(), result.getReason()));
+                    reasons.add(names[i] + ": " + result.getReason());
                     break;
                 case INCONCLUSIVE:
                     inconclusive = true;
-                    diagnostics.add(names[i] + ": " + result.getReason());
+                    diagnostics.add(DetectionDiagnostic.inconclusive(names[i], result.getReason()));
+                    reasons.add(names[i] + ": " + result.getReason());
                     break;
                 case NO_DETECTION:
                     break;
@@ -55,10 +59,12 @@ public final class FridaResultAggregator {
             return DetectionResult.detected(ModuleId.FRIDA, evidences);
         }
         if (firstErrorCode != null) {
-            return DetectionResult.error(ModuleId.FRIDA, firstErrorCode, String.join("; ", diagnostics));
+            return DetectionResult.error(ModuleId.FRIDA, firstErrorCode, String.join("; ", reasons),
+                    diagnostics);
         }
         if (inconclusive) {
-            return DetectionResult.inconclusive(ModuleId.FRIDA, String.join("; ", diagnostics));
+            return DetectionResult.inconclusive(ModuleId.FRIDA, String.join("; ", reasons),
+                    diagnostics);
         }
         return DetectionResult.clean(ModuleId.FRIDA);
     }

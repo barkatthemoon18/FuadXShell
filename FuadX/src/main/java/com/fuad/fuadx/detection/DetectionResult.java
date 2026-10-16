@@ -11,13 +11,15 @@ public final class DetectionResult {
     private final ModuleId moduleId;
     private final DetectionStatus status;
     private final List<DetectionEvidence> evidence;
+    private final List<DetectionDiagnostic> diagnostics;
     private final String reason;
     private final String errorCode;
     private final long timestamp;
 
     private DetectionResult(ModuleId moduleId, DetectionStatus status, List<DetectionEvidence> evidence,
-                           String reason, String errorCode) {
+                           List<DetectionDiagnostic> diagnostics, String reason, String errorCode) {
         List<DetectionEvidence> evidenceCopy = new ArrayList<>(Objects.requireNonNull(evidence));
+        List<DetectionDiagnostic> diagnosticCopy = new ArrayList<>(Objects.requireNonNull(diagnostics));
 
         if (evidenceCopy.contains(null)) {
             throw new IllegalArgumentException("Evidence cannot be null or contain null elements");
@@ -25,6 +27,7 @@ public final class DetectionResult {
         this.moduleId = Objects.requireNonNull(moduleId);
         this.status = Objects.requireNonNull(status);
         this.evidence = Collections.unmodifiableList(evidenceCopy);
+        this.diagnostics = Collections.unmodifiableList(diagnosticCopy);
         this.reason = reason;
         this.errorCode = errorCode;
         this.timestamp = System.currentTimeMillis();
@@ -39,21 +42,37 @@ public final class DetectionResult {
 
     public static DetectionResult clean(ModuleId moduleId) {
         return new DetectionResult(moduleId, DetectionStatus.NO_DETECTION, Collections.emptyList(),
-                null, null);
+                Collections.emptyList(), null, null);
     }
 
     public static DetectionResult detected(ModuleId moduleId, List<DetectionEvidence> evidence) {
-        return new DetectionResult(moduleId, DetectionStatus.DETECTED, evidence, null, null);
+        return detected(moduleId, evidence, Collections.emptyList());
+    }
+
+    public static DetectionResult detected(ModuleId moduleId, List<DetectionEvidence> evidence,
+                                           List<DetectionDiagnostic> diagnostics) {
+        return new DetectionResult(moduleId, DetectionStatus.DETECTED, evidence, diagnostics,
+                null, null);
     }
 
     public static DetectionResult inconclusive(ModuleId moduleId, String reason) {
+        return inconclusive(moduleId, reason, Collections.emptyList());
+    }
+
+    public static DetectionResult inconclusive(ModuleId moduleId, String reason,
+                                               List<DetectionDiagnostic> diagnostics) {
         return new DetectionResult(moduleId, DetectionStatus.INCONCLUSIVE, Collections.emptyList(),
-                Objects.requireNonNull(reason), null);
+                diagnostics, Objects.requireNonNull(reason), null);
     }
 
     public static DetectionResult error(ModuleId moduleId, String errorCode, String reason) {
+        return error(moduleId, errorCode, reason, Collections.emptyList());
+    }
+
+    public static DetectionResult error(ModuleId moduleId, String errorCode, String reason,
+                                        List<DetectionDiagnostic> diagnostics) {
         return new DetectionResult(moduleId, DetectionStatus.ERROR, Collections.emptyList(),
-                Objects.requireNonNull(reason), Objects.requireNonNull(errorCode));
+                diagnostics, Objects.requireNonNull(reason), Objects.requireNonNull(errorCode));
     }
 
     public ModuleId getModuleId() {
@@ -66,6 +85,10 @@ public final class DetectionResult {
 
     public List<DetectionEvidence> getEvidence() {
         return evidence;
+    }
+
+    public List<DetectionDiagnostic> getDiagnostics() {
+        return diagnostics;
     }
 
     public String getReason() {
