@@ -30,8 +30,11 @@ public final class DetectionScheduler implements AutoCloseable {
     }
 
     public DetectionScheduler(Consumer<DetectionResult> observer) {
+        int workers;
+
         this.observer = Objects.requireNonNull(observer);
-        executor = new ScheduledThreadPoolExecutor(1, runnable -> {
+        workers = ModuleId.values().length;
+        executor = new ScheduledThreadPoolExecutor(workers, runnable -> {
             Thread thread = new Thread(runnable, "FuadX-Detection-Scheduler");
             thread.setDaemon(true);
             return thread;
@@ -106,7 +109,7 @@ public final class DetectionScheduler implements AutoCloseable {
     }
 
     @Override
-    public synchronized void close() throws Exception {
+    public synchronized void close() {
         if (closed) {
             return;
         }

@@ -17,6 +17,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 public class DetectionSchedulerTest {
@@ -35,6 +36,15 @@ public class DetectionSchedulerTest {
         if (scheduler != null) {
             scheduler.close();
         }
+    }
+
+    private void replaceScheduler(Consumer<DetectionResult> observer) {
+        try {
+            scheduler.close();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        scheduler = new DetectionScheduler(observer);
     }
 
     @Test
@@ -100,7 +110,7 @@ public class DetectionSchedulerTest {
             throw new RuntimeException("Simulated crash");
         };
 
-        scheduler = new DetectionScheduler(result -> {
+        replaceScheduler(result -> {
             observedResults.add(result);
             latch.countDown();
         });
@@ -122,7 +132,7 @@ public class DetectionSchedulerTest {
 
         Supplier<DetectionResult> probe = () -> null;
 
-        scheduler = new DetectionScheduler(result -> {
+        replaceScheduler(result -> {
             observedResults.add(result);
             latch.countDown();
         });
@@ -145,7 +155,7 @@ public class DetectionSchedulerTest {
         // Intentionally return FRIDA while scheduling ROOT
         Supplier<DetectionResult> probe = () -> DetectionResult.clean(ModuleId.FRIDA);
 
-        scheduler = new DetectionScheduler(result -> {
+        replaceScheduler(result -> {
             observedResults.add(result);
             latch.countDown();
         });
@@ -160,6 +170,63 @@ public class DetectionSchedulerTest {
         assertEquals(DetectionStatus.ERROR, result.getStatus());
         assertEquals("MODULE_EXECUTION_FAILED", result.getErrorCode());
         assertTrue(result.getReason().contains("IllegalStateException"));
+    }
+
+    @Test
+    public void testSlowModuleDoesNotBlockAnotherModule() throws InterruptedException {
+
+        CountDownLatch debugStarted = new CountDownLatch(1);
+        CountDownLatch releaseDebug = new CountDownLatch(1);
+        CountDownLatch fridaObserved = new CountDownLatch(1);
+
+        replaceScheduler(result -> {
+            observedResults.add(result);
+
+            if (result.getModuleId() == ModuleId.FRIDA) {
+                fridaObserved.countDown();
+            }
+        });
+
+        try {
+            assertTrue(scheduler.schedule(
+                    ModuleId.DEBUG,
+                    () -> {
+                        debugStarted.countDown();
+
+                        try {
+                            releaseDebug.await();
+
+                            return DetectionResult.clean(
+                                    ModuleId.DEBUG);
+
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+
+                            return DetectionResult.inconclusive(
+                                    ModuleId.DEBUG,
+                                    "Evaluation interrupted");
+                        }
+                    },
+                    10_000
+            ));
+
+            assertTrue(debugStarted.await(
+                    2, TimeUnit.SECONDS));
+
+            assertTrue(scheduler.schedule(
+                    ModuleId.FRIDA,
+                    () -> DetectionResult.clean(ModuleId.FRIDA),
+                    10_000
+            ));
+
+            assertTrue(
+                    "Frida was blocked by Debug",
+                    fridaObserved.await(2, TimeUnit.SECONDS)
+            );
+
+        } finally {
+            releaseDebug.countDown();
+        }
     }
 
     @Test(expected = IllegalStateException.class)
