@@ -43,9 +43,10 @@ public class FridaNamedPipeProbeTest {
         createFakeFd("2");
 
         FridaNamedPipeProbe.LinkResolver mockResolver = path -> {
-            if (path.endsWith("/0")) return "/dev/null";
-            if (path.endsWith("/1")) return "socket:[12345]";
-            if (path.endsWith("/2")) return "/system/lib64/libc.so";
+            String name = new File(path).getName();
+            if (name.equals("0")) return "/dev/null";
+            if (name.equals("1")) return "socket:[12345]";
+            if (name.equals("2")) return "/system/lib64/libc.so";
             return "";
         };
 
@@ -62,14 +63,15 @@ public class FridaNamedPipeProbeTest {
         createFakeFd("1");
 
         FridaNamedPipeProbe.LinkResolver mockResolver = path -> {
-            if (path.endsWith("/0")) return "/dev/null";
+            String name = new File(path).getName();
+            if (name.equals("0")) return "/dev/null";
             
             // Note: "pipe:[1234] linjector" is a synthetic fixture meant ONLY to 
             // test the string matching logic inside FridaNamedPipeProbe. 
             // In a real Android environment, anonymous pipes show up as "pipe:[inode_number]",
             // while Frida's linjector might be found in other file descriptor types
             // (like mapped files or socket connections). This is strictly for unit testing.
-            if (path.endsWith("/1")) return "pipe:[1234] " + Constants.LINJECTOR;
+            if (name.equals("1")) return "pipe:[1234] " + Constants.LINJECTOR;
             
             return "";
         };

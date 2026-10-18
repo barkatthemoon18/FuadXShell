@@ -2,25 +2,22 @@ package com.fuad.fuadxapp;
 
 import android.app.Application;
 import android.content.Context;
-import android.content.res.AssetManager;
-import android.os.Build;
 import android.util.Log;
 
+import com.fuad.fuadx.detection.runtime.FuadXRuntime;
+import com.fuad.fuadx.module.ModuleId;
+
 import java.io.File;
-import java.io.InputStream;
-import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
-
-import dalvik.system.DexClassLoader;
 
 public class MainApplication extends Application {
     private static final String TAG = "FuadXApp";
     public static Application app;
+    private FuadXRuntime raspRuntime;
 
     private Field getFieldObject(Object instance, String name) throws Exception {
         Field field;
@@ -62,7 +59,7 @@ public class MainApplication extends Application {
     protected void attachBaseContext(Context base) {
         super.attachBaseContext(base);
         app = this;
-        System.loadLibrary("fuadxshell");
+        //System.loadLibrary("fuadxshell");
         Log.e(TAG, "Loaded successfully");
     }
 
@@ -79,6 +76,13 @@ public class MainApplication extends Application {
         List<File> dexFiles = new ArrayList<>();
 
         super.onCreate();
+        raspRuntime = new FuadXRuntime(getApplicationContext(), result ->
+                Log.i(TAG, "RASP module: " + result.getModuleId()
+                    + ", status: " + result.getStatus()
+                    + ", evidence: " + result.getEvidence().size()
+                    + ", diagnostics: " + result.getDiagnostics().size()));
+        boolean started = raspRuntime.start(ModuleId.FRIDA, 5000);
+        Log.i(TAG, "Frida scheduled: " + started);
         /* try {
             AssetManager assetManager = getBaseContext().getAssets();
             InputStream stream = assetManager.open("classesPrueba.dex", AssetManager.ACCESS_BUFFER);
