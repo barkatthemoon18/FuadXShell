@@ -10,8 +10,6 @@ import com.fuad.fuadx.apkintegrity.ApkIntegrity;
 import com.fuad.fuadx.apkintegrity.ApkIntegrityModuleInfo;
 import com.fuad.fuadx.debug.Debug;
 import com.fuad.fuadx.debug.DebugModuleInfo;
-import com.fuad.fuadx.frida.Frida;
-import com.fuad.fuadx.frida.FridaModuleInfo;
 import com.fuad.fuadx.logger.FuadXLogger;
 import com.fuad.fuadx.pinning.SSLPinning;
 import com.fuad.fuadx.pinning.SSLPinningModuleInfo;
@@ -47,7 +45,6 @@ public class FuadXHandler {
         FuadXLogger.log().info(TAG, "Running checks on background thread");
         Log.e(TAG, "Running checks on background thread");
         runApkIntegrity(ctx);
-        runFridaModule(ctx);
         runAppPinned(ctx);
         runDebugModule(ctx);
         /* TODO: Root pending */
@@ -74,30 +71,6 @@ public class FuadXHandler {
                 FuadXLogger.log().info(TAG, "Unknown module: " + moduleName);
                 Log.e(TAG, "No action performed");
                 break;
-        }
-    }
-
-    private static synchronized void runFridaModule(Context ctx) {
-        Log.e(TAG, "Initializing Frida module");
-        FuadXLogger.log().info(TAG, "Initializing Frida module");
-        FridaModuleInfo[] resultInfo = Frida.isRunningFridaOnApk(ctx);
-        if (resultInfo == null) {
-            FuadXLogger.log().info(TAG, "Frida is not running on the APK");
-            Log.e(TAG, "Frida is not running on the APK");
-            handler.postDelayed(() -> performChecking(ctx), delayMillisecs);
-        }
-        else {
-            Map<String, Object> metadata = new HashMap<>();
-            for (FridaModuleInfo info : resultInfo) {
-                if (info != null) {
-                    metadata.put("heuristic", info.getModuleHeuristic());
-                    metadata.put("method", info.getModuleDetectionMethod());
-                    metadata.put("result", info.getModuleDetectionResult());
-                }
-            }
-            FuadXLogger.log().fatal(TAG, "Frida is running on the APK", metadata);
-            Log.e(TAG, "Frida is running on the APK");
-            stopCheckingPerModule(Constants.FRIDA_MODULE_NAME);
         }
     }
 
@@ -174,7 +147,7 @@ public class FuadXHandler {
     }
 
     private static synchronized void stopFridaModule() {
-        Log.e(TAG, "Stopping the Frida module");
+        Log.w(TAG, "Frida is managed by FuadXRuntime. " + "Use FuadXRuntime.stop(ModuleId.FRIDA)");
     }
 
     private static synchronized void stopDebugModule() {

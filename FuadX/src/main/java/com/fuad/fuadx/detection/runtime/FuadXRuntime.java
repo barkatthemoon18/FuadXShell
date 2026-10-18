@@ -30,6 +30,9 @@ public final class FuadXRuntime implements AutoCloseable {
 
         ensureOpen();
         module = modules.get(Objects.requireNonNull(moduleId, "moduleId"));
+        if (module == null) {
+            throw new IllegalArgumentException("Module not registered: " + moduleId);
+        }
         return scheduler.schedule(module, context, intervalMillis);
     }
 
@@ -42,7 +45,7 @@ public final class FuadXRuntime implements AutoCloseable {
     }
 
     @Override
-    public void close() {
+    public synchronized void close() {
         if (closed) {
             return;
         }
