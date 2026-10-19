@@ -10,6 +10,8 @@ import com.google.gson.GsonBuilder;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -17,6 +19,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 public class FuadXLogger {
@@ -70,7 +73,7 @@ public class FuadXLogger {
     }
 
     public void debug(String tag, String message, Map<String, Object> metadata) {
-        FuadXLogEntry entry = new FuadXLogEntry(tag, message, LogLevel.DEBUG);
+        FuadXLogEntry entry = new FuadXLogEntry(tag, message, LogLevel.DEBUG, metadata);
         saveLoggedEntry(entry);
     }
 
@@ -80,7 +83,7 @@ public class FuadXLogger {
     }
 
     public void info(String tag, String message, Map<String, Object> metadata) {
-        FuadXLogEntry entry = new FuadXLogEntry(tag, message, LogLevel.INFO);
+        FuadXLogEntry entry = new FuadXLogEntry(tag, message, LogLevel.INFO, metadata);
         saveLoggedEntry(entry);
     }
 
@@ -90,7 +93,7 @@ public class FuadXLogger {
     }
 
     public void warn(String tag, String message, Map<String, Object> metadata) {
-        FuadXLogEntry entry = new FuadXLogEntry(tag, message, LogLevel.WARNING);
+        FuadXLogEntry entry = new FuadXLogEntry(tag, message, LogLevel.WARNING, metadata);
         saveLoggedEntry(entry);
     }
 
@@ -100,7 +103,7 @@ public class FuadXLogger {
     }
 
     public void error(String tag, String message, Map<String, Object> metadata) {
-        FuadXLogEntry entry = new FuadXLogEntry(tag, message, LogLevel.ERROR);
+        FuadXLogEntry entry = new FuadXLogEntry(tag, message, LogLevel.ERROR, metadata);
         saveLoggedEntry(entry);
     }
 
@@ -114,16 +117,22 @@ public class FuadXLogger {
         saveLoggedEntry(entry);
     }
 
-    private void saveLoggedEntry(FuadXLogEntry entry) {
-        if (entry == null) {
-            throw new IllegalArgumentException("Log entry cannot be null");
+    private synchronized void saveLoggedEntry(FuadXLogEntry entry) {
+        File destination;
+        byte[] payload;
+
+        Objects.requireNonNull(entry, "entry");
+        destination = logFile;
+        if (destination == null) {
+            Log.w(TAG, "FuadXLogger is not configured; entry dropped");
+            return;
         }
-        try (FileOutputStream fos = new FileOutputStream(logFile, true)) {
-            fos.write(entry.asJsonOrdered().toString().getBytes());
-            fos.write("\n".getBytes());
+        payload = (entry.asJsonOrdered().toString() + "\n").getBytes(StandardCharsets.UTF_8);
+        try (FileOutputStream fos = new FileOutputStream(destination, true)) {
+            fos.write(payload);
         }
-        catch (Exception e) {
-            Log.e(TAG, "Unable to save entry for FuadXLogger");
+        catch (IOException e) {
+            Log.e(TAG, "Unable to save entry for FuadXLogger", e);
         }
     }
 }

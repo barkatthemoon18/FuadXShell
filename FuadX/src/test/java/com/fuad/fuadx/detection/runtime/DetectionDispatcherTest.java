@@ -1,11 +1,16 @@
 package com.fuad.fuadx.detection.runtime;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
+import com.fuad.fuadx.detection.DetectionDiagnostic;
+import com.fuad.fuadx.detection.DetectionEvidence;
 import com.fuad.fuadx.detection.DetectionResult;
+import com.fuad.fuadx.detection.DetectionSource;
 import com.fuad.fuadx.detection.policy.DetectionDecision;
 import com.fuad.fuadx.detection.policy.DetectionPolicy;
+import com.fuad.fuadx.detection.policy.MonitoringDetectionPolicy;
 import com.fuad.fuadx.detection.reporting.DetectionReporter;
 import com.fuad.fuadx.module.ModuleId;
 
@@ -13,6 +18,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class DetectionDispatcherTest {
@@ -104,5 +110,25 @@ public class DetectionDispatcherTest {
     public void testConstructorRejectsNullReporter() {
         DetectionPolicy mockPolicy = result -> DetectionDecision.CONTINUE;
         new DetectionDispatcher(mockPolicy, null);
+    }
+
+
+    @Test
+    public void testDetectionPreservesEvidenceAndDiagnostics() {
+        DetectionEvidence evidence = new DetectionEvidence("FridaNamedThreads",
+                "scan", "gum-js-loop", DetectionSource.ANDROID_SIDE);
+        DetectionDiagnostic diagnostic =
+                DetectionDiagnostic.inconclusive("pipes", "Partial inspection");
+        DetectionResult original = DetectionResult.detected(ModuleId.FRIDA,
+                Collections.singletonList(evidence), Collections.singletonList(diagnostic));
+        DetectionDispatcher dispatcher = new DetectionDispatcher(new MonitoringDetectionPolicy(),
+                mockReporter);
+        dispatcher.accept(original);
+
+        assertEquals(1, reportedCalls.size());
+        assertEquals(DetectionDecision.REPORT_DETECTION, reportedCalls.get(0).decision);
+        assertSame(original, reportedCalls.get(0).result);
+        assertEquals(1, original.getEvidence().size());
+        assertEquals(1, original.getDiagnostics().size());
     }
 }
