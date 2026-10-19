@@ -3,14 +3,9 @@ package com.fuad.fuadx.detection.runtime;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import com.fuad.fuadx.detection.DetectionDiagnostic;
-import com.fuad.fuadx.detection.DetectionEvidence;
 import com.fuad.fuadx.detection.DetectionResult;
-import com.fuad.fuadx.detection.DetectionSource;
-import com.fuad.fuadx.detection.DetectionSource;
 import com.fuad.fuadx.detection.policy.DetectionDecision;
 import com.fuad.fuadx.detection.policy.DetectionPolicy;
-import com.fuad.fuadx.detection.policy.MonitoringDetectionPolicy;
 import com.fuad.fuadx.detection.reporting.DetectionReporter;
 import com.fuad.fuadx.module.ModuleId;
 
@@ -18,7 +13,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public class DetectionDispatcherTest {
@@ -99,6 +93,11 @@ public class DetectionDispatcherTest {
 
         DetectionResult cleanResult = DetectionResult.clean(ModuleId.ROOT);
         dispatcher.accept(cleanResult);
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void testConstructorRejectsNullPolicy() {
+        new DetectionDispatcher(null, mockReporter);
     }
 
     @Test(expected = NullPointerException.class)

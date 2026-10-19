@@ -32,14 +32,14 @@ public final class FuadXRuntime implements AutoCloseable {
     public FuadXRuntime(Context applicationContext, Consumer<DetectionResult> observer,
                         DetectionPolicy policy, DetectionReporter reporter) {
         Consumer<DetectionResult> monitoringObserver;
-        DetectionDispatcher dispacher;
+        DetectionDispatcher dispatcher;
 
         this.context = new DetectionContext(Objects.requireNonNull(applicationContext, "applicationContext"));
         monitoringObserver = Objects.requireNonNull(observer);
-        dispacher = new DetectionDispatcher(Objects.requireNonNull(policy), Objects.requireNonNull(reporter));
+        dispatcher = new DetectionDispatcher(Objects.requireNonNull(policy), Objects.requireNonNull(reporter));
         this.scheduler = new DetectionScheduler(result -> {
             try {
-                dispacher.accept(result);
+                dispatcher.accept(result);
             }
             catch (RuntimeException e) {
                 Log.e(TAG, "Detection dispatch failed", e);
@@ -51,7 +51,7 @@ public final class FuadXRuntime implements AutoCloseable {
                 Log.e(TAG, "Monitoring observer failed", e);
             }
         });
-        register(new FridaDetectionModule());;
+        register(new FridaDetectionModule());
     }
 
     public synchronized boolean start(ModuleId moduleId, long intervalMillis) {
