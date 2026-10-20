@@ -21,23 +21,34 @@ public class FuadXBootstrapInstrumentedTest {
         // Create bootstrap
         FuadXBootstrap bootstrap = new FuadXBootstrap(appContext);
         
-        // Initial state
-        assertEquals(FuadXBootstrap.State.NEW, bootstrap.getState());
+        try {
+            // Initial state
+            assertEquals(FuadXBootstrap.State.NEW, bootstrap.getState());
 
-        // Start initialization
-        bootstrap.start();
+            // Start initialization
+            bootstrap.start();
 
-        // Wait a reasonable amount of time for the background thread to finish initialization.
-        // It's going to schedule Frida which might take a few milliseconds.
-        Thread.sleep(1000); // 1 second
+            // Wait until the state transitions to RUNNING or we timeout
+            long timeoutMillis = 3000;
+            long intervalMillis = 100;
+            long start = System.currentTimeMillis();
+            
+            while (bootstrap.getState() == FuadXBootstrap.State.STARTING || bootstrap.getState() == FuadXBootstrap.State.NEW) {
+                if (System.currentTimeMillis() - start >= timeoutMillis) {
+                    break;
+                }
+                Thread.sleep(intervalMillis);
+            }
 
-        // After successfully starting, the state should be RUNNING.
-        assertEquals(FuadXBootstrap.State.RUNNING, bootstrap.getState());
-
-        // Close the bootstrap
-        bootstrap.close();
-
-        // After closing, the state should be CLOSED.
-        assertEquals(FuadXBootstrap.State.CLOSED, bootstrap.getState());
+            // After successfully starting (or timing out), the state should be RUNNING.
+            assertEquals("Bootstrap did not reach RUNNING state within " + timeoutMillis + "ms", 
+                    FuadXBootstrap.State.RUNNING, bootstrap.getState());
+        } finally {
+            // Close the bootstrap securely
+            bootstrap.close();
+            
+            // After closing, the state should be CLOSED.
+            assertEquals(FuadXBootstrap.State.CLOSED, bootstrap.getState());
+        }
     }
 }

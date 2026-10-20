@@ -13,6 +13,7 @@ import com.fuad.fuadx.detection.reporting.DetectionReporter;
 import com.fuad.fuadx.detection.reporting.LogcatDetectionReporter;
 import com.fuad.fuadx.module.ModuleId;
 
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Objects;
@@ -31,12 +32,19 @@ public final class FuadXRuntime implements AutoCloseable {
 
     public FuadXRuntime(Context applicationContext, Consumer<DetectionResult> observer,
                         DetectionPolicy policy, DetectionReporter reporter) {
+        this(applicationContext, observer, policy, reporter, Collections.singletonList(new FridaDetectionModule()));
+    }
+
+    public FuadXRuntime(Context applicationContext, Consumer<DetectionResult> observer,
+                        DetectionPolicy policy, DetectionReporter reporter,
+                        Iterable<DetectionModule> modules) {
         Consumer<DetectionResult> monitoringObserver;
         DetectionDispatcher dispatcher;
 
-        this.context = new DetectionContext(Objects.requireNonNull(applicationContext, "applicationContext"));
+        Objects.requireNonNull(modules, "modules");
         monitoringObserver = Objects.requireNonNull(observer);
         dispatcher = new DetectionDispatcher(Objects.requireNonNull(policy), Objects.requireNonNull(reporter));
+        this.context = new DetectionContext(Objects.requireNonNull(applicationContext, "applicationContext"));
         this.scheduler = new DetectionScheduler(result -> {
             try {
                 dispatcher.accept(result);
@@ -51,7 +59,15 @@ public final class FuadXRuntime implements AutoCloseable {
                 Log.e(TAG, "Monitoring observer failed", e);
             }
         });
-        register(new FridaDetectionModule());
+        try {
+            for (DetectionModule module : modules) {
+                register(module);
+            }
+        }
+        catch (RuntimeException e) {
+            scheduler.close();
+            throw e;
+        }
     }
 
     public synchronized boolean start(ModuleId moduleId, long intervalMillis) {
@@ -63,6 +79,17 @@ public final class FuadXRuntime implements AutoCloseable {
             throw new IllegalArgumentException("Module not registered: " + moduleId);
         }
         return scheduler.schedule(module, context, intervalMillis);
+    }
+
+    public synchronized boolean startOnce(ModuleId moduleId) {
+        DetectionModule module;
+
+        ensureOpen();
+        module = modules.get(Objects.requireNonNull(moduleId, "moduleId"));
+        if (module == null) {
+            throw new IllegalArgumentException("Module not registered: " + moduleId);
+        }
+        return scheduler.scheduleOnce(module, context);
     }
 
     public synchronized boolean stop(ModuleId moduleId) {

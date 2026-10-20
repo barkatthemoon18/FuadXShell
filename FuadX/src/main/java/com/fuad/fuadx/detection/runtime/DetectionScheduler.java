@@ -68,6 +68,37 @@ public final class DetectionScheduler implements AutoCloseable {
         return true;
     }
 
+    public boolean scheduleOnce(DetectionModule module, DetectionContext context) {
+        Objects.requireNonNull(module, "module");
+        Objects.requireNonNull(context, "context");
+
+        return scheduleOnce(module.id(), () -> module.check(context));
+    }
+
+    private synchronized boolean scheduleOnce(ModuleId moduleId, Supplier<DetectionResult> evaluation) {
+        Registration registration = new Registration();
+
+        Objects.requireNonNull(moduleId, "moduleId");
+        Objects.requireNonNull(evaluation, "evaluation");
+
+        if (closed) {
+            throw new IllegalStateException("Scheduler is closed");
+        }
+        if (registrations.containsKey(moduleId)) {
+            return false;
+        }
+        registrations.put(moduleId, registration);
+        try {
+            registration.future = executor.schedule(() -> execute(moduleId, evaluation, registration),
+                    0, TimeUnit.MILLISECONDS);
+            return true;
+        }
+        catch (RuntimeException e) {
+            registrations.remove(moduleId);
+            throw e;
+        }
+    }
+
     private void execute(ModuleId moduleId, Supplier<DetectionResult> evaluation, Registration registration) {
         DetectionResult result;
 
