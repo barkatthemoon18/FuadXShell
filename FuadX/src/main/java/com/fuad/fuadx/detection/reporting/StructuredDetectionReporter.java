@@ -24,6 +24,8 @@ public final class StructuredDetectionReporter implements DetectionReporter {
     public void report(DetectionResult result, DetectionDecision decision) {
         Map<String, Object> event = new LinkedHashMap<>();
 
+        Objects.requireNonNull(result, "result");
+        Objects.requireNonNull(decision, "decision");
         if (decision == DetectionDecision.CONTINUE) {
             return;
         }
