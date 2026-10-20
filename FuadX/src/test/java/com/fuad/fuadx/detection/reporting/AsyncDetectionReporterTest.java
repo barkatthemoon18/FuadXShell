@@ -67,8 +67,10 @@ public class AsyncDetectionReporterTest {
         // Queue capacity is exactly 1
         CountDownLatch freezeDownstream = new CountDownLatch(1);
         CountDownLatch delivered = new CountDownLatch(1);
+        CountDownLatch processingStarted = new CountDownLatch(1);
 
         DetectionReporter blockingDownstream = (result, decision) -> {
+            processingStarted.countDown();
             try {
                 assertTrue("Downstream froze too long", freezeDownstream.await(5, TimeUnit.SECONDS));
                 deliveredResults.add(result);
@@ -87,7 +89,7 @@ public class AsyncDetectionReporterTest {
         reporter.report(diagnosticResult, DetectionDecision.REPORT_DIAGNOSTIC);
         
         // Let it start processing so it pulls from the queue, freeing up the 1 slot
-        Thread.sleep(50);
+        assertTrue("Worker thread did not start processing in time", processingStarted.await(2, TimeUnit.SECONDS));
         
         // 2. Fill the queue again with a diagnostic (now queue size is 1)
         reporter.report(diagnosticResult, DetectionDecision.REPORT_DIAGNOSTIC);
@@ -98,6 +100,9 @@ public class AsyncDetectionReporterTest {
         // Allow downstream to finish
         freezeDownstream.countDown();
         delivered.await(2, TimeUnit.SECONDS);
+        
+        // Explicitly close reporter before waiting for termination
+        reporter.close();
         reporter.awaitTermination(2, TimeUnit.SECONDS);
 
         // We expect the dropped diagnostics count to be 1
@@ -109,8 +114,10 @@ public class AsyncDetectionReporterTest {
     public void testUndeliveredDetectionTriggersOverflowHandler() throws InterruptedException {
         // Capacity 1
         CountDownLatch freezeDownstream = new CountDownLatch(1);
+        CountDownLatch processingStarted = new CountDownLatch(1);
 
         DetectionReporter blockingDownstream = (result, decision) -> {
+            processingStarted.countDown();
             try {
                 freezeDownstream.await();
             } catch (InterruptedException e) {
@@ -125,7 +132,10 @@ public class AsyncDetectionReporterTest {
         DetectionResult detection3 = DetectionResult.detected(ModuleId.DEBUG, Collections.singletonList(new DetectionEvidence("a", "b", "c", DetectionSource.ANDROID_SIDE)));
 
         reporter.report(detection1, DetectionDecision.REPORT_DETECTION); // Processed (pulled from queue)
-        Thread.sleep(50);
+        
+        // Wait for worker to pull it from the queue
+        assertTrue("Worker thread did not start processing in time", processingStarted.await(2, TimeUnit.SECONDS));
+        
         reporter.report(detection2, DetectionDecision.REPORT_DETECTION); // Takes the 1 slot in queue
         reporter.report(detection3, DetectionDecision.REPORT_DETECTION); // Queue full, no diagnostics to kick out! OVERFLOW!
 
@@ -133,6 +143,8 @@ public class AsyncDetectionReporterTest {
         assertEquals(1, reporter.getUndeliveredDetections());
 
         freezeDownstream.countDown();
+        reporter.close();
+        reporter.awaitTermination(2, TimeUnit.SECONDS);
     }
 
     @Test

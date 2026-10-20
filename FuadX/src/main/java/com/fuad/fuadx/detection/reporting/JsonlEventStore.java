@@ -36,7 +36,7 @@ public final class JsonlEventStore implements Consumer<Map<String, Object>> {
     }
 
     @Override
-    public void accept(Map<String, Object> event) {
+    public synchronized void accept(Map<String, Object> event) {
         byte[] payload;
 
         Objects.requireNonNull(event, "event");
