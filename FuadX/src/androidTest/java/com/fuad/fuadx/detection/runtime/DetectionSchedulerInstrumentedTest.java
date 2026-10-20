@@ -4,6 +4,13 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import android.content.Context;
+
+import androidx.test.ext.junit.runners.AndroidJUnit4;
+import androidx.test.platform.app.InstrumentationRegistry;
+
+import com.fuad.fuadx.detection.DetectionContext;
+import com.fuad.fuadx.detection.DetectionModule;
 import com.fuad.fuadx.detection.DetectionResult;
 import com.fuad.fuadx.detection.DetectionStatus;
 import com.fuad.fuadx.module.ModuleId;
@@ -11,28 +18,33 @@ import com.fuad.fuadx.module.ModuleId;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-public class DetectionSchedulerTest {
+@RunWith(AndroidJUnit4.class)
+public class DetectionSchedulerInstrumentedTest {
 
     private DetectionScheduler scheduler;
     private List<DetectionResult> observedResults;
+    private Context appContext;
 
     @Before
     public void setUp() {
+        appContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
         observedResults = Collections.synchronizedList(new ArrayList<>());
         scheduler = new DetectionScheduler(result -> observedResults.add(result));
     }
 
     @After
-    public void tearDown() throws Exception {
+    public void tearDown() {
         if (scheduler != null) {
             scheduler.close();
         }
@@ -74,6 +86,67 @@ public class DetectionSchedulerTest {
         assertTrue(scheduler.schedule(ModuleId.FRIDA, () -> DetectionResult.clean(ModuleId.FRIDA), 100));
         assertFalse("Should not allow duplicate scheduling", 
                 scheduler.schedule(ModuleId.FRIDA, () -> DetectionResult.clean(ModuleId.FRIDA), 100));
+    }
+
+    @Test
+    public void testCannotScheduleOnceSameModuleTwice() {
+        CountDownLatch latch = new CountDownLatch(1);
+        
+        DetectionModule fakeModule = new DetectionModule() {
+            @Override
+            public ModuleId id() { return ModuleId.FRIDA; }
+            @Override
+            public DetectionResult check(DetectionContext ctx) {
+                try {
+                    latch.await();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                return DetectionResult.clean(ModuleId.FRIDA);
+            }
+        };
+        
+        DetectionContext context = new DetectionContext(appContext);
+
+        assertTrue(scheduler.scheduleOnce(fakeModule, context));
+
+        // While the first is stuck executing, attempting to schedule it again should fail
+        assertFalse("Should not allow duplicate scheduling once", 
+                scheduler.scheduleOnce(fakeModule, context));
+                
+        latch.countDown();
+    }
+
+    @Test
+    public void testScheduleOnceFailsIfPeriodicAlreadyRunning() {
+        CountDownLatch latch = new CountDownLatch(1);
+        
+        // Start a periodic background evaluation (e.g. interval 10s)
+        assertTrue(scheduler.schedule(ModuleId.ROOT, () -> {
+            try {
+                latch.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            return DetectionResult.clean(ModuleId.ROOT);
+        }, 10_000));
+        
+        DetectionModule fakeModule = new DetectionModule() {
+            @Override
+            public ModuleId id() { return ModuleId.ROOT; }
+            @Override
+            public DetectionResult check(DetectionContext ctx) {
+                return DetectionResult.clean(ModuleId.ROOT);
+            }
+        };
+        
+        DetectionContext context = new DetectionContext(appContext);
+
+        // Attempting to do a forced scheduleOnce of the same module while it has an active Registration should fail
+        assertFalse("Cannot scheduleOnce if the module is already registered for periodic scanning", 
+                scheduler.scheduleOnce(fakeModule, context));
+                
+        latch.countDown();
     }
 
     @Test
@@ -238,5 +311,92 @@ public class DetectionSchedulerTest {
     @Test(expected = IllegalArgumentException.class)
     public void testScheduleThrowsIfIntervalIsNegative() {
         scheduler.schedule(ModuleId.ROOT, () -> DetectionResult.clean(ModuleId.ROOT), -5);
+    }
+
+
+    @Test
+    public void testScheduleOnceExecutesExactlyOnce()
+            throws InterruptedException {
+
+        AtomicInteger executions = new AtomicInteger();
+        CountDownLatch observed = new CountDownLatch(1);
+
+        replaceScheduler(result -> {
+            if (result.getModuleId() == ModuleId.APK_INTEGRITY) {
+                observed.countDown();
+            }
+        });
+
+        assertTrue(scheduler.scheduleOnce(
+                ModuleId.APK_INTEGRITY,
+                () -> {
+                    executions.incrementAndGet();
+                    return DetectionResult.clean(
+                            ModuleId.APK_INTEGRITY);
+                }
+        ));
+
+        assertTrue(observed.await(2, TimeUnit.SECONDS));
+        assertEquals(1, executions.get());
+
+        // The completed one-shot registration remains reserved.
+        assertFalse(scheduler.scheduleOnce(
+                ModuleId.APK_INTEGRITY,
+                () -> DetectionResult.clean(ModuleId.APK_INTEGRITY)
+        ));
+
+        assertEquals(1, executions.get());
+    }
+
+    @Test
+    public void testOneShotDoesNotWaitForBlockedPeriodicModule()
+            throws InterruptedException {
+
+        CountDownLatch debugStarted = new CountDownLatch(1);
+        CountDownLatch releaseDebug = new CountDownLatch(1);
+        CountDownLatch integrityObserved = new CountDownLatch(1);
+
+        replaceScheduler(result -> {
+            if (result.getModuleId() == ModuleId.APK_INTEGRITY) {
+                integrityObserved.countDown();
+            }
+        });
+
+        try {
+            assertTrue(scheduler.schedule(
+                    ModuleId.DEBUG,
+                    () -> {
+                        debugStarted.countDown();
+
+                        try {
+                            releaseDebug.await();
+                            return DetectionResult.clean(ModuleId.DEBUG);
+
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            return DetectionResult.inconclusive(
+                                    ModuleId.DEBUG,
+                                    "Evaluation interrupted");
+                        }
+                    },
+                    10000
+            ));
+
+            assertTrue(debugStarted.await(2, TimeUnit.SECONDS));
+
+            assertTrue(scheduler.scheduleOnce(
+                    ModuleId.APK_INTEGRITY,
+                    () -> DetectionResult.clean(
+                            ModuleId.APK_INTEGRITY)
+            ));
+
+            assertTrue(
+                    "APK Integrity was blocked by Debug",
+                    integrityObserved.await(2, TimeUnit.SECONDS)
+            );
+
+        } finally {
+            releaseDebug.countDown();
+        }
     }
 }

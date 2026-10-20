@@ -75,7 +75,7 @@ public final class DetectionScheduler implements AutoCloseable {
         return scheduleOnce(module.id(), () -> module.check(context));
     }
 
-    private synchronized boolean scheduleOnce(ModuleId moduleId, Supplier<DetectionResult> evaluation) {
+    synchronized boolean scheduleOnce(ModuleId moduleId, Supplier<DetectionResult> evaluation) {
         Registration registration = new Registration();
 
         Objects.requireNonNull(moduleId, "moduleId");
