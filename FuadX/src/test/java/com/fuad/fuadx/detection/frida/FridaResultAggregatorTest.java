@@ -15,9 +15,12 @@ public class FridaResultAggregatorTest {
 
     @Test
     public void testAggregateDelegatesCorrectlyToGenericAggregator() {
-        HeuristicResult clean = HeuristicResult.clean();
+        java.util.Map<String, HeuristicResult> results = new java.util.HashMap<>();
+        results.put("threads", HeuristicResult.clean());
+        results.put("pipes", HeuristicResult.clean());
+        results.put("libraries", HeuristicResult.clean());
 
-        DetectionResult result = FridaResultAggregator.aggregate(clean, clean, clean);
+        DetectionResult result = FridaResultAggregator.aggregate(results);
 
         // Since the heavy lifting is done in DetectionResultAggregator, 
         // we just need to verify that FridaResultAggregator wires it correctly 
@@ -30,33 +33,30 @@ public class FridaResultAggregatorTest {
 
     @Test
     public void testAggregateIncludesCorrectKeysInDiagnostics() {
-        HeuristicResult errorThreads = HeuristicResult.error("ERR_T", "Threads failed");
-        HeuristicResult inconclusivePipes = HeuristicResult.inconclusive("Pipes unreadable");
-        HeuristicResult errorLibs = HeuristicResult.error("ERR_L", "Libs failed");
+        java.util.Map<String, HeuristicResult> results = new java.util.HashMap<>();
+        results.put("threads", HeuristicResult.error("ERR_T", "Threads failed"));
+        results.put("pipes", HeuristicResult.inconclusive("Pipes unreadable"));
+        results.put("libraries", HeuristicResult.error("ERR_L", "Libs failed"));
 
-        DetectionResult result = FridaResultAggregator.aggregate(errorThreads, inconclusivePipes, errorLibs);
+        DetectionResult result = FridaResultAggregator.aggregate(results);
 
         assertEquals(DetectionStatus.ERROR, result.getStatus());
         assertEquals(3, result.getDiagnostics().size());
-        
-        // Ensure the hardcoded keys are correct
-        assertEquals("threads", result.getDiagnostics().get(0).getProbe());
-        assertEquals("pipes", result.getDiagnostics().get(1).getProbe());
-        assertEquals("libraries", result.getDiagnostics().get(2).getProbe());
+        assertEquals("thread", result.getDiagnostics().get(0).getProbe());
+        assertEquals("pipe", result.getDiagnostics().get(1).getProbe());
+        assertEquals("library", result.getDiagnostics().get(2).getProbe());
     }
 
     @Test(expected = NullPointerException.class)
-    public void testNullThreadsThrowsException() {
-        FridaResultAggregator.aggregate(null, HeuristicResult.clean(), HeuristicResult.clean());
+    public void testNullThrowsException() {
+        FridaResultAggregator.aggregate(null);
     }
 
-    @Test(expected = NullPointerException.class)
-    public void testNullPipesThrowsException() {
-        FridaResultAggregator.aggregate(HeuristicResult.clean(), null, HeuristicResult.clean());
-    }
-
-    @Test(expected = NullPointerException.class)
-    public void testNullLibrariesThrowsException() {
-        FridaResultAggregator.aggregate(HeuristicResult.clean(), HeuristicResult.clean(), null);
+    @Test(expected = IllegalArgumentException.class)
+    public void testMissingKeysThrowsException() {
+        java.util.Map<String, HeuristicResult> results = new java.util.HashMap<>();
+        results.put("threads", HeuristicResult.clean());
+        // Missing others
+        FridaResultAggregator.aggregate(results);
     }
 }

@@ -19,17 +19,21 @@ public final class DetectionResultAggregator {
         List<String> reasons = new ArrayList<>();
         HeuristicResult result;
         String firstErrorCode = null;
-        String probe;
+        String name;
         boolean inconclusive = false;
 
         Objects.requireNonNull(moduleId, "moduleId");
         Objects.requireNonNull(probes, "probes");
+
+        if (probes.isEmpty()) {
+            throw new IllegalArgumentException("At least one probe must be provided");
+        }
         for (Map.Entry<String, HeuristicResult> entry : probes.entrySet()) {
-            probe = Objects.requireNonNull(entry.getKey(), "probe");
-            if (probe.trim().isEmpty()) {
+            name = Objects.requireNonNull(entry.getKey(), "probe name");
+            if (name.trim().isEmpty()) {
                 throw new IllegalArgumentException("Probe name cannot be blank");
             }
-            result = Objects.requireNonNull(entry.getValue(), "Probe result cannot be null: " + probe);
+            result = Objects.requireNonNull(entry.getValue(), "probe result: " + name);
             switch (result.getStatus()) {
                 case DETECTED:
                     evidences.addAll(result.getEvidence());
@@ -38,18 +42,16 @@ public final class DetectionResultAggregator {
                     if (firstErrorCode == null) {
                         firstErrorCode = result.getErrorCode();
                     }
-                    diagnostics.add(DetectionDiagnostic.error(probe, result.getReason(), result.getErrorCode()));
-                    reasons.add(probe + ": " + result.getReason());
+                    diagnostics.add(DetectionDiagnostic.error(name, result.getReason(), result.getErrorCode()));
+                    reasons.add(name + ": " + result.getReason());
                     break;
                 case INCONCLUSIVE:
                     inconclusive = true;
-                    diagnostics.add(DetectionDiagnostic.inconclusive(probe, result.getReason()));
-                    reasons.add(probe + ": " + result.getReason());
+                    diagnostics.add(DetectionDiagnostic.inconclusive(name, result.getReason()));
+                    reasons.add(name + ": " + result.getReason());
                     break;
                 case NO_DETECTION:
                     break;
-                default:
-                    throw new IllegalStateException("Unsupported heuristic status");
             }
         }
         if (!evidences.isEmpty()) {

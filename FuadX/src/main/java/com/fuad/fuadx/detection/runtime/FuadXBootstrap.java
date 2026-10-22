@@ -14,7 +14,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public final class FuadXBootstrap implements AutoCloseable {
     private static final String TAG = "FuadXBootstrap";
-    private static final long FRIDA_INTERVAL_MILIS = 5000L;
+    private static final long FRIDA_INTERVAL_MILLIS = 5000L;
+    private static final long DEBUG_INTERVAL_MILLIS = 5000L;
 
     public enum State {
         NEW,
@@ -68,7 +69,8 @@ public final class FuadXBootstrap implements AutoCloseable {
     private void initialize() {
         PersistentDetectionReporter newReporter = null;
         FuadXRuntime newRuntime = null;
-        boolean started;
+        boolean fridaStarted;
+        boolean debugStarted;
 
         try {
             if (state.get() != State.STARTING) {
@@ -79,9 +81,10 @@ public final class FuadXBootstrap implements AutoCloseable {
                     result.getModuleId() + ", status=" + result.getStatus() + ", evidence="
                     + result.getEvidence().size() + ", diagnostics=" + result.getDiagnostics().size()),
                     new MonitoringDetectionPolicy(), newReporter, Collections.singletonList(new FridaDetectionModule()));
-            started = newRuntime.start(ModuleId.FRIDA, FRIDA_INTERVAL_MILIS);
-            if (!started) {
-                throw new IllegalStateException("Frida module was not scheduled");
+            fridaStarted = newRuntime.start(ModuleId.FRIDA, FRIDA_INTERVAL_MILLIS);
+            debugStarted = newRuntime.start(ModuleId.DEBUG, DEBUG_INTERVAL_MILLIS);
+            if (!fridaStarted || !debugStarted) {
+                throw new IllegalStateException("Unable to schedule Frida and Debug modules");
             }
             synchronized (this) {
                 if (state.get() != State.STARTING) {

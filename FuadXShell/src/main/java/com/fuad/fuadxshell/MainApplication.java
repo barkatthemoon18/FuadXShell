@@ -7,8 +7,6 @@ import dalvik.system.*;
 
 import com.fuad.fuadxshell.exception.FuadXShellRuntimeException;
 
-import java.io.IOException;
-
 public class MainApplication extends Application {
     public static Application app;
 
@@ -16,13 +14,6 @@ public class MainApplication extends Application {
     protected void attachBaseContext(Context base) {
         super.attachBaseContext(base);
         app = this;
-        try {
-            System.loadLibrary("fuadxshell");
-        }
-        catch (Exception e) {
-            throw new FuadXShellRuntimeException(base, "FuadXShell", "Failed to run app",
-                    e.getMessage(), -1000);
-        }
     }
 
     @Override

@@ -149,6 +149,14 @@ public class DetectionResultAggregatorTest {
         probes.put("   ", HeuristicResult.clean());
         DetectionResultAggregator.aggregate(ModuleId.ROOT, probes);
     }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testEmptyProbeSetIsRejected() {
+        DetectionResultAggregator.aggregate(
+                ModuleId.DEBUG,
+                Collections.emptyMap()
+        );
+    }
     
     @Test(expected = NullPointerException.class)
     public void testNullProbeResultThrowsException() {

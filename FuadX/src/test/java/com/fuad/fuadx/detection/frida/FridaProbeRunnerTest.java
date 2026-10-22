@@ -40,11 +40,10 @@ public class FridaProbeRunnerTest {
 
     @Test
     public void testSuccessfulExecutionAllClean() {
-        FridaProbeRunner runner = new FridaProbeRunner(executor, 1000);
-        
-        Supplier<HeuristicResult> probe = HeuristicResult::clean;
+        Supplier<HeuristicResult> cleanProbe = HeuristicResult::clean;
+        FridaProbeRunner runner = new FridaProbeRunner(cleanProbe, cleanProbe, cleanProbe, executor, 1000);
 
-        DetectionResult result = runner.execute(probe, probe, probe);
+        DetectionResult result = runner.execute();
 
         assertEquals(DetectionStatus.NO_DETECTION, result.getStatus());
         assertTrue(result.getEvidence().isEmpty());
@@ -52,13 +51,13 @@ public class FridaProbeRunnerTest {
 
     @Test
     public void testExecutionWithDetection() {
-        FridaProbeRunner runner = new FridaProbeRunner(executor, 1000);
-        
         DetectionEvidence evidence = new DetectionEvidence("Test", "Method", "Found it", DetectionSource.ANDROID_SIDE);
         Supplier<HeuristicResult> cleanProbe = HeuristicResult::clean;
         Supplier<HeuristicResult> detectedProbe = () -> HeuristicResult.detected(Collections.singletonList(evidence));
 
-        DetectionResult result = runner.execute(cleanProbe, detectedProbe, cleanProbe);
+        FridaProbeRunner runner = new FridaProbeRunner(cleanProbe, detectedProbe, cleanProbe, executor, 1000);
+
+        DetectionResult result = runner.execute();
 
         assertEquals(DetectionStatus.DETECTED, result.getStatus());
         assertEquals(1, result.getEvidence().size());
@@ -67,8 +66,6 @@ public class FridaProbeRunnerTest {
 
     @Test
     public void testTimeoutHandling() {
-        FridaProbeRunner runner = new FridaProbeRunner(executor, 100); // 100ms timeout
-        
         Supplier<HeuristicResult> cleanProbe = HeuristicResult::clean;
         Supplier<HeuristicResult> slowProbe = () -> {
             try {
@@ -79,22 +76,21 @@ public class FridaProbeRunnerTest {
             return HeuristicResult.clean();
         };
 
+        FridaProbeRunner runner = new FridaProbeRunner(cleanProbe, cleanProbe, slowProbe, executor, 100); // 100ms timeout
+
         // Pass slow probe as the third argument (libraries)
-        DetectionResult result = runner.execute(cleanProbe, cleanProbe, slowProbe);
+        DetectionResult result = runner.execute();
 
         // Since it timed out, it should be aggregated as INCONCLUSIVE
         assertEquals(DetectionStatus.INCONCLUSIVE, result.getStatus());
-        assertTrue(result.getReason().contains("libraries: Probe exceeded evaluation deadline"));
+        assertTrue(result.getReason().contains("library: Probe exceeded evaluation deadline"));
         assertEquals(1, result.getDiagnostics().size());
-        assertEquals("libraries", result.getDiagnostics().get(0).getProbe());
+        assertEquals("library", result.getDiagnostics().get(0).getProbe());
     }
 
     @Test
     public void testConcurrentExecutionIsRejected()
             throws InterruptedException {
-
-        FridaProbeRunner runner =
-                new FridaProbeRunner(executor, 2500);
 
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
@@ -120,12 +116,11 @@ public class FridaProbeRunnerTest {
             }
         };
 
+        FridaProbeRunner runner =
+                new FridaProbeRunner(blockingProbe, blockingProbe, blockingProbe, executor, 2500);
+
         Thread first = new Thread(() -> firstResult.set(
-                runner.execute(
-                        blockingProbe,
-                        blockingProbe,
-                        blockingProbe
-                )
+                runner.execute()
         ));
 
         try {
@@ -136,11 +131,7 @@ public class FridaProbeRunnerTest {
                     started.await(2, TimeUnit.SECONDS)
             );
 
-            DetectionResult second = runner.execute(
-                    HeuristicResult::clean,
-                    HeuristicResult::clean,
-                    HeuristicResult::clean
-            );
+            DetectionResult second = runner.execute();
 
             assertEquals(
                     DetectionStatus.ERROR,
@@ -158,7 +149,6 @@ public class FridaProbeRunnerTest {
         }
 
         assertFalse("First evaluation did not finish", first.isAlive());
-
         assertEquals(
                 DetectionStatus.NO_DETECTION,
                 firstResult.get().getStatus()
@@ -167,9 +157,6 @@ public class FridaProbeRunnerTest {
     
     @Test
     public void testDetectionIsPreservedOnPartialTimeout() {
-
-        FridaProbeRunner runner =
-                new FridaProbeRunner(executor, 300);
 
         CountDownLatch release = new CountDownLatch(1);
 
@@ -199,12 +186,11 @@ public class FridaProbeRunnerTest {
             }
         };
 
+        FridaProbeRunner runner =
+                new FridaProbeRunner(detected, blocking, HeuristicResult::clean, executor, 300);
+
         try {
-            DetectionResult result = runner.execute(
-                    detected,
-                    blocking,
-                    HeuristicResult::clean
-            );
+            DetectionResult result = runner.execute();
 
             assertEquals(
                     DetectionStatus.DETECTED,
@@ -215,7 +201,7 @@ public class FridaProbeRunnerTest {
             assertEquals(1, result.getDiagnostics().size());
 
             assertEquals(
-                    "pipes",
+                    "pipe",
                     result.getDiagnostics().get(0).getProbe()
             );
 
@@ -231,19 +217,18 @@ public class FridaProbeRunnerTest {
     
     @Test
     public void testProbeThrowsException() {
-        FridaProbeRunner runner = new FridaProbeRunner(executor, 1000);
-        
         Supplier<HeuristicResult> cleanProbe = HeuristicResult::clean;
         Supplier<HeuristicResult> crashingProbe = () -> {
             throw new RuntimeException("Simulated crash");
         };
 
-        // Pass crashing probe as first argument (threads)
-        DetectionResult result = runner.execute(crashingProbe, cleanProbe, cleanProbe);
+        FridaProbeRunner runner = new FridaProbeRunner(crashingProbe, cleanProbe, cleanProbe, executor, 1000);
+
+        DetectionResult result = runner.execute();
 
         // Runner should catch the exception and return an ERROR for that probe
         assertEquals(DetectionStatus.ERROR, result.getStatus());
         assertEquals("FRIDA_THREAD_PROBE_FAILED", result.getErrorCode());
-        assertTrue(result.getReason().contains("threads: Probe failed: RuntimeException"));
+        assertTrue(result.getReason().contains("thread: Probe failed: RuntimeException"));
     }
 }
