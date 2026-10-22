@@ -3,11 +3,13 @@ package com.fuad.fuadx.detection.runtime;
 import android.content.Context;
 import android.util.Log;
 
+import com.fuad.fuadx.detection.debug.DebugDetectionModule;
 import com.fuad.fuadx.detection.frida.FridaDetectionModule;
 import com.fuad.fuadx.detection.policy.MonitoringDetectionPolicy;
 import com.fuad.fuadx.detection.reporting.PersistentDetectionReporter;
 import com.fuad.fuadx.module.ModuleId;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
@@ -80,7 +82,8 @@ public final class FuadXBootstrap implements AutoCloseable {
             newRuntime = new FuadXRuntime(context, result -> Log.i(TAG, "module=" +
                     result.getModuleId() + ", status=" + result.getStatus() + ", evidence="
                     + result.getEvidence().size() + ", diagnostics=" + result.getDiagnostics().size()),
-                    new MonitoringDetectionPolicy(), newReporter, Collections.singletonList(new FridaDetectionModule()));
+                    new MonitoringDetectionPolicy(), newReporter,
+                    Arrays.asList(new FridaDetectionModule(), new DebugDetectionModule()));
             fridaStarted = newRuntime.start(ModuleId.FRIDA, FRIDA_INTERVAL_MILLIS);
             debugStarted = newRuntime.start(ModuleId.DEBUG, DEBUG_INTERVAL_MILLIS);
             if (!fridaStarted || !debugStarted) {

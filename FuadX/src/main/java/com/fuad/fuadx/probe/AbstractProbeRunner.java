@@ -49,7 +49,7 @@ public abstract class AbstractProbeRunner implements ProbeRunner {
         if (probes.isEmpty()) {
             throw new IllegalArgumentException("At least one probe must be provided");
         }
-        copy = new ArrayList<>(probes);
+        copy = new ArrayList<>(probes.size());
         for (ProbeDefinition probe : probes) {
             checked = Objects.requireNonNull(probe, "probe");
             if (!names.add(checked.getName())) {
