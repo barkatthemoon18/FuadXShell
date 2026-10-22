@@ -83,9 +83,9 @@ public class FridaProbeRunnerTest {
 
         // Since it timed out, it should be aggregated as INCONCLUSIVE
         assertEquals(DetectionStatus.INCONCLUSIVE, result.getStatus());
-        assertTrue(result.getReason().contains("library: Probe exceeded evaluation deadline"));
+        assertTrue(result.getReason().contains("libraries: Probe exceeded evaluation deadline"));
         assertEquals(1, result.getDiagnostics().size());
-        assertEquals("library", result.getDiagnostics().get(0).getProbe());
+        assertEquals("libraries", result.getDiagnostics().get(0).getProbe());
     }
 
     @Test
@@ -201,7 +201,7 @@ public class FridaProbeRunnerTest {
             assertEquals(1, result.getDiagnostics().size());
 
             assertEquals(
-                    "pipe",
+                    "pipes",
                     result.getDiagnostics().get(0).getProbe()
             );
 
@@ -229,6 +229,6 @@ public class FridaProbeRunnerTest {
         // Runner should catch the exception and return an ERROR for that probe
         assertEquals(DetectionStatus.ERROR, result.getStatus());
         assertEquals("FRIDA_THREAD_PROBE_FAILED", result.getErrorCode());
-        assertTrue(result.getReason().contains("thread: Probe failed: RuntimeException"));
+        assertTrue(result.getReason().contains("threads: Probe failed: RuntimeException"));
     }
 }

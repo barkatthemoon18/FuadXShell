@@ -10,7 +10,6 @@ import com.fuad.fuadx.detection.reporting.PersistentDetectionReporter;
 import com.fuad.fuadx.module.ModuleId;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 

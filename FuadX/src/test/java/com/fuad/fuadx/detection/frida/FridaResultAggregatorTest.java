@@ -42,9 +42,9 @@ public class FridaResultAggregatorTest {
 
         assertEquals(DetectionStatus.ERROR, result.getStatus());
         assertEquals(3, result.getDiagnostics().size());
-        assertEquals("thread", result.getDiagnostics().get(0).getProbe());
-        assertEquals("pipe", result.getDiagnostics().get(1).getProbe());
-        assertEquals("library", result.getDiagnostics().get(2).getProbe());
+        assertEquals("threads", result.getDiagnostics().get(0).getProbe());
+        assertEquals("pipes", result.getDiagnostics().get(1).getProbe());
+        assertEquals("libraries", result.getDiagnostics().get(2).getProbe());
     }
 
     @Test(expected = NullPointerException.class)

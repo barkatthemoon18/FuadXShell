@@ -23,9 +23,9 @@ public final class FridaResultAggregator {
                 !results.containsKey("libraries")) {
             throw new IllegalArgumentException("Unexpected Frida probe result set");
         }
-        ordered.put("thread", Objects.requireNonNull(results.get("threads"), "threads"));
-        ordered.put("pipe", Objects.requireNonNull(results.get("pipes"), "pipes"));
-        ordered.put("library", Objects.requireNonNull(results.get("libraries"), "libraries"));
+        ordered.put("threads", Objects.requireNonNull(results.get("threads"), "threads"));
+        ordered.put("pipes", Objects.requireNonNull(results.get("pipes"), "pipes"));
+        ordered.put("libraries", Objects.requireNonNull(results.get("libraries"), "libraries"));
         return DetectionResultAggregator.aggregate(ModuleId.FRIDA, ordered);
     }
 }
