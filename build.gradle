@@ -1,5 +1,37 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 plugins {
-alias(libs.plugins.androidApplication) apply false
+    alias(libs.plugins.androidApplication) apply false
     alias(libs.plugins.androidLibrary) apply false
+}
+
+def fuadXVerificationGroup = 'FuadX verification'
+
+tasks.register('fuadXUnitTests') {
+    group = fuadXVerificationGroup
+    description = 'Runs FuadX local JVM unit tests.'
+    dependsOn ':FuadX:testDebugUnitTest'
+}
+
+tasks.register('fuadXCompileInstrumentedTests') {
+    group = fuadXVerificationGroup
+    description = 'Compiles FuadX instrumented tests without requiring a device.'
+    dependsOn ':FuadX:compileDebugAndroidTestJavaWithJavac'
+}
+
+tasks.register('fuadXInstrumentedTests') {
+    group = fuadXVerificationGroup
+    description = 'Runs FuadX instrumented tests on a connected Android device or emulator.'
+    dependsOn ':FuadX:connectedDebugAndroidTest'
+}
+
+tasks.register('checkFuadX') {
+    group = fuadXVerificationGroup
+    description = 'Runs FuadX unit tests and validates instrumented-test compilation.'
+    dependsOn 'fuadXUnitTests', 'fuadXCompileInstrumentedTests'
+}
+
+tasks.register('fuadXAllTests') {
+    group = fuadXVerificationGroup
+    description = 'Runs all FuadX unit and instrumented tests.'
+    dependsOn 'fuadXUnitTests', 'fuadXInstrumentedTests'
 }

@@ -12,6 +12,7 @@ import com.fuad.fuadx.detection.DetectionResult;
 import com.fuad.fuadx.module.ModuleId;
 import com.fuad.fuadx.probe.ProbeDefinition;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
@@ -50,7 +51,7 @@ public class DebugDetectionModule implements DetectionModule {
     }
 
     private static List<ProbeDefinition> defaultProbes() {
-        return List.of(
+        return Arrays.asList(
                 new ProbeDefinition("tracerPid", "DEBUG_TRACERPID_PROBE_FAILED",
                         new DebugTracerPidProbe()::scan),
                 new ProbeDefinition("jdwpThreads", "DEBUG_JDWP_THREADS_PROBE_FAILED",

@@ -82,7 +82,7 @@ public final class DebugTracedStateProbe {
         if (!evidences.isEmpty()) {
             return HeuristicResult.detected(evidences);
         }
-        if (invalid < 0) {
+        if (invalid > 0) {
             return HeuristicResult.error("DEBUG_TRACED_STATE_INVALID",
                     "Malformed stat data in: " + invalid + " thread files");
         }

@@ -31,7 +31,7 @@ public final class DebugThreadTracerPidProbe {
         File statusFile;
         String line;
         String raw;
-        boolean found = false;
+        boolean found;
         int inspected = 0;
         int failed = 0;
         int invalid = 0;
@@ -49,6 +49,7 @@ public final class DebugThreadTracerPidProbe {
             if (!thread.isDirectory()) {
                 continue;
             }
+            found = false;
             statusFile = new File(thread, "status");
             try (BufferedReader reader = new BufferedReader(new FileReader(statusFile))) {
                 while ((line = reader.readLine()) != null) {

@@ -9,6 +9,7 @@ import com.fuad.fuadx.frida.FridaThreadProbe;
 import com.fuad.fuadx.module.ModuleId;
 import com.fuad.fuadx.probe.ProbeDefinition;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
@@ -47,7 +48,7 @@ public class FridaDetectionModule implements DetectionModule {
     }
 
     private static List<ProbeDefinition> defaultProbes() {
-        return List.of(
+        return Arrays.asList(
                 new ProbeDefinition("threads", "FRIDA_THREAD_PROBE_FAILED",
                         new FridaThreadProbe()::scan),
                 new ProbeDefinition("pipes", "FRIDA_PIPE_PROBE_FAILED",
