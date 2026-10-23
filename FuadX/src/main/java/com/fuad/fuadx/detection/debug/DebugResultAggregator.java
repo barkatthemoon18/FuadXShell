@@ -6,13 +6,16 @@ import com.fuad.fuadx.heuristic.HeuristicResult;
 import com.fuad.fuadx.module.ModuleId;
 
 import java.util.LinkedHashMap;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
 public final class DebugResultAggregator {
-    private static final List<String> PROBES = List.of("tracerPid", "jdwpThreads", "threadTracerPid",
-            "tracedState", "wchan", "javaDebugger");
+    private static final List<String> PROBES = Collections.unmodifiableList(Arrays.asList(
+            "tracerPid", "jdwpThreads", "threadTracerPid",
+            "tracedState", "wchan", "javaDebugger"));
 
     private DebugResultAggregator() {
         /* Empty intentionally */

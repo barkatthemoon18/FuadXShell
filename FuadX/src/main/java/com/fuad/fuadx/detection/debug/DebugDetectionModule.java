@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit;
 
 public class DebugDetectionModule implements DetectionModule {
     private static final long DEFAULT_TIMEOUT_MILLIS = 3000L;
-    private static final ExecutorService SHARED_EXECUTOR = new ThreadPoolExecutor(0, 3, 30,
+    private static final ExecutorService SHARED_EXECUTOR = new ThreadPoolExecutor(0, 6, 30,
             TimeUnit.SECONDS, new SynchronousQueue<>(), runnable -> {
         Thread thread = new Thread(runnable, "FuadX-Debug-Probe");
         thread.setDaemon(true);

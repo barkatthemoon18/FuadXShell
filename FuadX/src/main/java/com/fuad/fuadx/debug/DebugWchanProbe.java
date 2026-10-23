@@ -82,10 +82,10 @@ public final class DebugWchanProbe {
             return HeuristicResult.detected(evidences);
         }
         if (failed > 0) {
-            return HeuristicResult.inconclusive("Wait channel unavailable for " + unknown + " threads");
+            return HeuristicResult.inconclusive("Unable to inspect " + failed + " thread wait channels");
         }
         if (unknown > 0) {
-            return HeuristicResult.inconclusive("Unable to inspect " + failed + " thread wait channels");
+            return HeuristicResult.inconclusive("Wait channel unavailable for " + unknown + " threads");
         }
         if (inspected == 0) {
             return HeuristicResult.inconclusive("No readable wait channels");
