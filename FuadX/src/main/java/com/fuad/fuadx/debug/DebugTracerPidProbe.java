@@ -12,7 +12,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Objects;
 
-public class DebugTracerPidProbe {
+public final class DebugTracerPidProbe {
     private final File statusFile;
 
     public DebugTracerPidProbe() {

@@ -22,6 +22,7 @@ public class DebugResultAggregatorTest {
         Map<String, HeuristicResult> results = new HashMap<>();
         results.put("tracerPid", HeuristicResult.clean());
         results.put("jdwpThreads", HeuristicResult.clean());
+        addCleanDebugProbes(results);
 
         DetectionResult result = DebugResultAggregator.aggregate(results);
 
@@ -36,6 +37,7 @@ public class DebugResultAggregatorTest {
         Map<String, HeuristicResult> results = new HashMap<>();
         results.put("tracerPid", HeuristicResult.error("ERR_TRACER", "Tracer failed"));
         results.put("jdwpThreads", HeuristicResult.inconclusive("JDWP unreadable"));
+        addCleanDebugProbes(results);
 
         DetectionResult result = DebugResultAggregator.aggregate(results);
 
@@ -68,5 +70,12 @@ public class DebugResultAggregatorTest {
         results.put("extraKey", HeuristicResult.clean());
         // Should throw because size != 2
         DebugResultAggregator.aggregate(results);
+    }
+
+    private static void addCleanDebugProbes(Map<String, HeuristicResult> results) {
+        results.put("threadTracerPid", HeuristicResult.clean());
+        results.put("tracedState", HeuristicResult.clean());
+        results.put("wchan", HeuristicResult.clean());
+        results.put("javaDebugger", HeuristicResult.clean());
     }
 }

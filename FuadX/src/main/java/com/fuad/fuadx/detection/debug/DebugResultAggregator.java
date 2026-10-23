@@ -6,10 +6,13 @@ import com.fuad.fuadx.heuristic.HeuristicResult;
 import com.fuad.fuadx.module.ModuleId;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-public class DebugResultAggregator {
+public final class DebugResultAggregator {
+    private static final List<String> PROBES = List.of("tracerPid", "jdwpThreads", "threadTracerPid",
+            "tracedState", "wchan", "javaDebugger");
 
     private DebugResultAggregator() {
         /* Empty intentionally */
@@ -19,11 +22,15 @@ public class DebugResultAggregator {
         Map<String, HeuristicResult> ordered = new LinkedHashMap<>();
 
         Objects.requireNonNull(results, "results");
-        if (results.size() != 2 || !results.containsKey("tracerPid") || !results.containsKey("jdwpThreads")) {
+        if (!(results.size() == PROBES.size() && results.keySet().containsAll(PROBES))) {
             throw new IllegalArgumentException("Unexpected Debug probe result set");
         }
-        ordered.put("tracerPid", Objects.requireNonNull(results.get("tracerPid"), "tracerPid"));
-        ordered.put("jdwpThreads", Objects.requireNonNull(results.get("jdwpThreads"), "jdwpThreads"));
+        for (String name : PROBES) {
+            if (!results.containsKey(name)) {
+                continue;
+            }
+            ordered.put(name, Objects.requireNonNull(results.get(name), name));
+        }
         return DetectionResultAggregator.aggregate(ModuleId.DEBUG, ordered);
     }
 }

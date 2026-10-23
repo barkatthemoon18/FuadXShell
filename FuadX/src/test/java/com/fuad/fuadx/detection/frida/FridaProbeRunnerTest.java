@@ -9,6 +9,7 @@ import com.fuad.fuadx.detection.DetectionResult;
 import com.fuad.fuadx.detection.DetectionSource;
 import com.fuad.fuadx.detection.DetectionStatus;
 import com.fuad.fuadx.heuristic.HeuristicResult;
+import com.fuad.fuadx.probe.ProbeDefinition;
 
 import org.junit.After;
 import org.junit.Before;
@@ -21,6 +22,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
+import java.util.Arrays;
+import java.util.List;
 
 public class FridaProbeRunnerTest {
 
@@ -41,7 +44,7 @@ public class FridaProbeRunnerTest {
     @Test
     public void testSuccessfulExecutionAllClean() {
         Supplier<HeuristicResult> cleanProbe = HeuristicResult::clean;
-        FridaProbeRunner runner = new FridaProbeRunner(cleanProbe, cleanProbe, cleanProbe, executor, 1000);
+        FridaProbeRunner runner = runner(cleanProbe, cleanProbe, cleanProbe, 1000);
 
         DetectionResult result = runner.execute();
 
@@ -55,7 +58,7 @@ public class FridaProbeRunnerTest {
         Supplier<HeuristicResult> cleanProbe = HeuristicResult::clean;
         Supplier<HeuristicResult> detectedProbe = () -> HeuristicResult.detected(Collections.singletonList(evidence));
 
-        FridaProbeRunner runner = new FridaProbeRunner(cleanProbe, detectedProbe, cleanProbe, executor, 1000);
+        FridaProbeRunner runner = runner(cleanProbe, detectedProbe, cleanProbe, 1000);
 
         DetectionResult result = runner.execute();
 
@@ -76,7 +79,7 @@ public class FridaProbeRunnerTest {
             return HeuristicResult.clean();
         };
 
-        FridaProbeRunner runner = new FridaProbeRunner(cleanProbe, cleanProbe, slowProbe, executor, 100); // 100ms timeout
+        FridaProbeRunner runner = runner(cleanProbe, cleanProbe, slowProbe, 100); // 100ms timeout
 
         // Pass slow probe as the third argument (libraries)
         DetectionResult result = runner.execute();
@@ -116,8 +119,7 @@ public class FridaProbeRunnerTest {
             }
         };
 
-        FridaProbeRunner runner =
-                new FridaProbeRunner(blockingProbe, blockingProbe, blockingProbe, executor, 2500);
+        FridaProbeRunner runner = runner(blockingProbe, blockingProbe, blockingProbe, 2500);
 
         Thread first = new Thread(() -> firstResult.set(
                 runner.execute()
@@ -186,8 +188,7 @@ public class FridaProbeRunnerTest {
             }
         };
 
-        FridaProbeRunner runner =
-                new FridaProbeRunner(detected, blocking, HeuristicResult::clean, executor, 300);
+        FridaProbeRunner runner = runner(detected, blocking, HeuristicResult::clean, 300);
 
         try {
             DetectionResult result = runner.execute();
@@ -222,7 +223,7 @@ public class FridaProbeRunnerTest {
             throw new RuntimeException("Simulated crash");
         };
 
-        FridaProbeRunner runner = new FridaProbeRunner(crashingProbe, cleanProbe, cleanProbe, executor, 1000);
+        FridaProbeRunner runner = runner(crashingProbe, cleanProbe, cleanProbe, 1000);
 
         DetectionResult result = runner.execute();
 
@@ -230,5 +231,58 @@ public class FridaProbeRunnerTest {
         assertEquals(DetectionStatus.ERROR, result.getStatus());
         assertEquals("FRIDA_THREAD_PROBE_FAILED", result.getErrorCode());
         assertTrue(result.getReason().contains("threads: Probe failed: RuntimeException"));
+    }
+
+    @Test
+    public void testNullProbeResultBecomesProbeError() {
+        FridaProbeRunner runner = runner(() -> null, HeuristicResult::clean,
+                HeuristicResult::clean, 1000);
+
+        DetectionResult result = runner.execute();
+
+        assertEquals(DetectionStatus.ERROR, result.getStatus());
+        assertEquals("FRIDA_THREAD_PROBE_FAILED", result.getErrorCode());
+        assertTrue(result.getReason().contains("threads: Probe returned null"));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testZeroTimeoutIsRejected() {
+        new FridaProbeRunner(probes(HeuristicResult::clean), executor, 0);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testTimeoutAtUpperBoundIsRejected() {
+        new FridaProbeRunner(probes(HeuristicResult::clean), executor, 60000);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testEmptyProbeListIsRejected() {
+        new FridaProbeRunner(Collections.emptyList(), executor, 1000);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testDuplicateProbeNamesAreRejected() {
+        new FridaProbeRunner(Arrays.asList(
+                new ProbeDefinition("same", "ERR_1", HeuristicResult::clean),
+                new ProbeDefinition("same", "ERR_2", HeuristicResult::clean)),
+                executor, 1000);
+    }
+
+    private FridaProbeRunner runner(Supplier<HeuristicResult> threads,
+                                    Supplier<HeuristicResult> pipes,
+                                    Supplier<HeuristicResult> libraries,
+                                    long timeoutMillis) {
+        List<ProbeDefinition> probes = Arrays.asList(
+                new ProbeDefinition("threads", "FRIDA_THREAD_PROBE_FAILED", threads),
+                new ProbeDefinition("pipes", "FRIDA_PIPE_PROBE_FAILED", pipes),
+                new ProbeDefinition("libraries", "FRIDA_LIBRARY_PROBE_FAILED", libraries));
+        return new FridaProbeRunner(probes, executor, timeoutMillis);
+    }
+
+    private static List<ProbeDefinition> probes(Supplier<HeuristicResult> heuristic) {
+        return Arrays.asList(
+                new ProbeDefinition("threads", "FRIDA_THREAD_PROBE_FAILED", heuristic),
+                new ProbeDefinition("pipes", "FRIDA_PIPE_PROBE_FAILED", heuristic),
+                new ProbeDefinition("libraries", "FRIDA_LIBRARY_PROBE_FAILED", heuristic));
     }
 }

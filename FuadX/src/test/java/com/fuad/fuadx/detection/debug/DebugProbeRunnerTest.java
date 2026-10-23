@@ -9,6 +9,7 @@ import com.fuad.fuadx.detection.DetectionResult;
 import com.fuad.fuadx.detection.DetectionSource;
 import com.fuad.fuadx.detection.DetectionStatus;
 import com.fuad.fuadx.heuristic.HeuristicResult;
+import com.fuad.fuadx.probe.ProbeDefinition;
 
 import org.junit.After;
 import org.junit.Before;
@@ -21,6 +22,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
+import java.util.Arrays;
+import java.util.List;
 
 public class DebugProbeRunnerTest {
 
@@ -28,7 +31,7 @@ public class DebugProbeRunnerTest {
 
     @Before
     public void setUp() {
-        executor = Executors.newFixedThreadPool(2);
+        executor = Executors.newFixedThreadPool(6);
     }
 
     @After
@@ -41,7 +44,7 @@ public class DebugProbeRunnerTest {
     @Test
     public void testSuccessfulExecutionAllClean() {
         Supplier<HeuristicResult> cleanProbe = HeuristicResult::clean;
-        DebugProbeRunner runner = new DebugProbeRunner(cleanProbe, cleanProbe, executor, 1000);
+        DebugProbeRunner runner = runner(cleanProbe, cleanProbe, cleanProbe, cleanProbe, cleanProbe, cleanProbe, 1000);
 
         DetectionResult result = runner.execute();
 
@@ -55,8 +58,7 @@ public class DebugProbeRunnerTest {
         Supplier<HeuristicResult> detectedProbe = () -> HeuristicResult.detected(Collections.singletonList(evidence));
         Supplier<HeuristicResult> cleanProbe = HeuristicResult::clean;
 
-        // One detected, one clean
-        DebugProbeRunner runner = new DebugProbeRunner(detectedProbe, cleanProbe, executor, 1000);
+        DebugProbeRunner runner = runner(detectedProbe, cleanProbe, cleanProbe, cleanProbe, cleanProbe, cleanProbe, 1000);
 
         DetectionResult result = runner.execute();
 
@@ -78,7 +80,7 @@ public class DebugProbeRunnerTest {
         };
 
         // Timeout of 100ms
-        DebugProbeRunner runner = new DebugProbeRunner(cleanProbe, slowProbe, executor, 100);
+        DebugProbeRunner runner = runner(cleanProbe, slowProbe, cleanProbe, cleanProbe, cleanProbe, cleanProbe, 100);
 
         DetectionResult result = runner.execute();
 
@@ -110,7 +112,8 @@ public class DebugProbeRunnerTest {
         };
 
         // Create a blocking runner specifically for this test to hold the lock
-        DebugProbeRunner blockingRunner = new DebugProbeRunner(blockingProbe, blockingProbe, executor, 2500);
+        DebugProbeRunner blockingRunner = runner(blockingProbe, blockingProbe, blockingProbe,
+                blockingProbe, blockingProbe, blockingProbe, 2500);
 
         Thread first = new Thread(() -> firstResult.set(blockingRunner.execute()));
 
@@ -141,7 +144,7 @@ public class DebugProbeRunnerTest {
             throw new RuntimeException("Simulated crash");
         };
 
-        DebugProbeRunner runner = new DebugProbeRunner(crashingProbe, cleanProbe, executor, 1000);
+        DebugProbeRunner runner = runner(crashingProbe, cleanProbe, cleanProbe, cleanProbe, cleanProbe, cleanProbe, 1000);
 
         DetectionResult result = runner.execute();
 
@@ -149,5 +152,68 @@ public class DebugProbeRunnerTest {
         assertEquals(DetectionStatus.ERROR, result.getStatus());
         assertEquals("DEBUG_TRACERPID_PROBE_FAILED", result.getErrorCode());
         assertTrue(result.getReason().contains("tracerPid: Probe failed: RuntimeException"));
+    }
+
+    @Test
+    public void testNullProbeResultBecomesProbeError() {
+        DebugProbeRunner runner = runner(() -> null, HeuristicResult::clean,
+                HeuristicResult::clean, HeuristicResult::clean,
+                HeuristicResult::clean, HeuristicResult::clean, 1000);
+
+        DetectionResult result = runner.execute();
+
+        assertEquals(DetectionStatus.ERROR, result.getStatus());
+        assertEquals("DEBUG_TRACERPID_PROBE_FAILED", result.getErrorCode());
+        assertTrue(result.getReason().contains("tracerPid: Probe returned null"));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testZeroTimeoutIsRejected() {
+        new DebugProbeRunner(debugProbes(HeuristicResult::clean), executor, 0);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testTimeoutAtUpperBoundIsRejected() {
+        new DebugProbeRunner(debugProbes(HeuristicResult::clean), executor, 60000);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testEmptyProbeListIsRejected() {
+        new DebugProbeRunner(Collections.emptyList(), executor, 1000);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testDuplicateProbeNamesAreRejected() {
+        new DebugProbeRunner(Arrays.asList(
+                new ProbeDefinition("same", "ERR_1", HeuristicResult::clean),
+                new ProbeDefinition("same", "ERR_2", HeuristicResult::clean)),
+                executor, 1000);
+    }
+
+    private DebugProbeRunner runner(Supplier<HeuristicResult> tracerPid,
+                                    Supplier<HeuristicResult> jdwpThreads,
+                                    Supplier<HeuristicResult> threadTracerPid,
+                                    Supplier<HeuristicResult> tracedState,
+                                    Supplier<HeuristicResult> wchan,
+                                    Supplier<HeuristicResult> javaDebugger,
+                                    long timeoutMillis) {
+        List<ProbeDefinition> probes = Arrays.asList(
+                new ProbeDefinition("tracerPid", "DEBUG_TRACERPID_PROBE_FAILED", tracerPid),
+                new ProbeDefinition("jdwpThreads", "DEBUG_JDWP_THREADS_PROBE_FAILED", jdwpThreads),
+                new ProbeDefinition("threadTracerPid", "DEBUG_THREAD_TRACERPID_PROBE_FAILED", threadTracerPid),
+                new ProbeDefinition("tracedState", "DEBUG_TRACED_STATE_PROBE_FAILED", tracedState),
+                new ProbeDefinition("wchan", "DEBUG_WCHAN_PROBE_FAILED", wchan),
+                new ProbeDefinition("javaDebugger", "DEBUG_JAVA_DEBUGGER_PROBE_FAILED", javaDebugger));
+        return new DebugProbeRunner(probes, executor, timeoutMillis);
+    }
+
+    private static List<ProbeDefinition> debugProbes(Supplier<HeuristicResult> heuristic) {
+        return Arrays.asList(
+                new ProbeDefinition("tracerPid", "DEBUG_TRACERPID_PROBE_FAILED", heuristic),
+                new ProbeDefinition("jdwpThreads", "DEBUG_JDWP_THREADS_PROBE_FAILED", heuristic),
+                new ProbeDefinition("threadTracerPid", "DEBUG_THREAD_TRACERPID_PROBE_FAILED", heuristic),
+                new ProbeDefinition("tracedState", "DEBUG_TRACED_STATE_PROBE_FAILED", heuristic),
+                new ProbeDefinition("wchan", "DEBUG_WCHAN_PROBE_FAILED", heuristic),
+                new ProbeDefinition("javaDebugger", "DEBUG_JAVA_DEBUGGER_PROBE_FAILED", heuristic));
     }
 }

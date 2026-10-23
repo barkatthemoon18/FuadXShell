@@ -6,10 +6,12 @@ import com.fuad.fuadx.heuristic.HeuristicResult;
 import com.fuad.fuadx.module.ModuleId;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
 public final class FridaResultAggregator {
+    private static final List<String> PROBES = List.of("threads", "pipes", "libraries");
 
     private FridaResultAggregator() {
         /* Empty intentionally */
@@ -19,13 +21,15 @@ public final class FridaResultAggregator {
         Map<String, HeuristicResult> ordered = new LinkedHashMap<>();
 
         Objects.requireNonNull(results, "results");
-        if (results.size() != 3 || !results.containsKey("threads") || !results.containsKey("pipes") ||
-                !results.containsKey("libraries")) {
+        if (!(results.size() == PROBES.size() && results.keySet().containsAll(PROBES))) {
             throw new IllegalArgumentException("Unexpected Frida probe result set");
         }
-        ordered.put("threads", Objects.requireNonNull(results.get("threads"), "threads"));
-        ordered.put("pipes", Objects.requireNonNull(results.get("pipes"), "pipes"));
-        ordered.put("libraries", Objects.requireNonNull(results.get("libraries"), "libraries"));
+        for (String name : PROBES) {
+            if (!results.containsKey(name)) {
+                continue;
+            }
+            ordered.put(name, Objects.requireNonNull(results.get(name), name));
+        }
         return DetectionResultAggregator.aggregate(ModuleId.FRIDA, ordered);
     }
 }

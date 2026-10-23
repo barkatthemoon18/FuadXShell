@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 
-public class DebugJdwpThreadProbe {
+public final class DebugJdwpThreadProbe {
     private final File taskDirectory;
 
     public DebugJdwpThreadProbe() {
