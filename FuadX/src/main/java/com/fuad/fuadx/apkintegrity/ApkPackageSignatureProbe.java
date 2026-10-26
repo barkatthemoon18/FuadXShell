@@ -54,7 +54,7 @@ public final class ApkPackageSignatureProbe {
         Set<String> actualPins = new HashSet<>();
 
         if (!expectedPackageName.equals(context.getPackageName())) {
-            detected("Unexpected application package name");
+            return detected("Unexpected application package name");
         }
         try {
             signers = currentSigners();
@@ -67,7 +67,8 @@ public final class ApkPackageSignatureProbe {
                 if (signer == null) {
                     return HeuristicResult.error("APK_SIGNER_INVALID", "Null signing certificate");
                 }
-                actualPins.add(Hex.toHexString(digest.digest(signer.toByteArray())));
+                actualPins.add(Hex.toHexString(digest.digest(signer.toByteArray()))
+                        .toUpperCase(Locale.ROOT));
             }
             if (!actualPins.equals(expectedPins) || signers.length != expectedPins.size()) {
                 return detected("Installed APK signer identity mismatch");
