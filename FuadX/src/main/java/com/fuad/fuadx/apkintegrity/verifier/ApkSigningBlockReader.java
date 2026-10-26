@@ -93,7 +93,7 @@ public final class ApkSigningBlockReader {
                 signatureMatches = u32(zipBuffer, i) == 0x06054b50L;
                 commentMatches = i + EOCD_MIN_SIZE + u16(zipBuffer, i + 20) == tailSize;
                 if (signatureMatches && commentMatches) {
-                    eocdPosition = 1;
+                    eocdPosition = i;
                     break;
                 }
             }
