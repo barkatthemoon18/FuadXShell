@@ -109,7 +109,7 @@ public final class ApkSigningBlockReader {
             }
             cdSize = u32(zipBuffer, eocdPosition + 12);
             cdOffset = u32(zipBuffer, eocdPosition + 16);
-            if (cdSize == 0xffffffffL || totalEntries == 0xffff) {
+            if (cdSize == 0xffffffffL || diskEntries == 0xffff || totalEntries == 0xffff) {
                 throw new IOException("ZIP64 unsupported");
             }
             eocdOffset = fileSize - tailSize + eocdPosition;
